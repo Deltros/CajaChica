@@ -7,7 +7,7 @@ const expenseSchema = z.object({
   periodId: z.string(),
   description: z.string().min(1),
   amount: z.number().positive(),
-  type: z.enum(["FIXED", "VARIABLE", "SAVING"]).default("VARIABLE"),
+  type: z.enum(["FIXED", "VARIABLE", "SAVING", "PENDING"]).default("VARIABLE"),
   date: z.string().optional(),
   accountId: z.string().optional(),
   categoryIds: z.array(z.string()).optional(),
@@ -65,7 +65,29 @@ export async function DELETE(req: Request) {
   if (!expense) return NextResponse.json({ error: "No encontrado" }, { status: 404 });
 
   await prisma.expense.delete({ where: { id } });
-
-
   return NextResponse.json({ ok: true });
+}
+
+export async function PATCH(req: Request) {
+  const session = await auth();
+  if (!session?.user?.id) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+
+  const body = await req.json();
+  const { id, amount, description, type } = body;
+  if (!id) return NextResponse.json({ error: "ID requerido" }, { status: 400 });
+
+  const expense = await prisma.expense.findFirst({
+    where: { id, period: { userId: session.user.id } },
+  });
+  if (!expense) return NextResponse.json({ error: "No encontrado" }, { status: 404 });
+
+  const updated = await prisma.expense.update({
+    where: { id },
+    data: {
+      ...(amount !== undefined && { amount: parseInt(String(amount)) }),
+      ...(description !== undefined && { description }),
+      ...(type !== undefined && { type }),
+    },
+  });
+  return NextResponse.json(updated);
 }

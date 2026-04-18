@@ -9,6 +9,7 @@ import HamburgerMenu from "@/components/HamburgerMenu";
 import { Logo } from "@/components/Logo";
 import DailyDonut from "@/components/DailyDonut";
 import StackedBudgetBar from "@/components/StackedBudgetBar";
+import PendingExpenseModal from "@/components/PendingExpenseModal";
 
 type Account = { id: string; name: string; type: string; isActive: boolean; isDefault: boolean };
 type Income = { id: string; accountId: string; amount: number; label: string | null; account: Account };
@@ -41,6 +42,7 @@ export default function DashboardPage() {
   const [showIngresos, setShowIngresos] = useState(true);
   const [showSaldo, setShowSaldo] = useState(true);
   const [showGastos, setShowGastos] = useState(true);
+  const [selectedPending, setSelectedPending] = useState<Expense | null>(null);
 
   const fetchPeriod = useCallback(async () => {
     setLoading(true);
@@ -87,11 +89,16 @@ export default function DashboardPage() {
   const daysLeft = daysLeftInMonth();
   const dailyBudget = daysLeft > 0 ? Math.floor(remaining / daysLeft) : 0;
 
+  const pendingExpenses = period?.expenses.filter((e) => e.type === "PENDING") ?? [];
+  const totalPending = pendingExpenses.reduce((s, e) => s + e.amount, 0);
+  const dailyBudgetWithPending = daysLeft > 0 ? Math.floor((remaining - totalPending) / daysLeft) : 0;
+
   const accountBalances = activeAccounts.map((account) => {
     const inc = period?.incomes.filter((i) => i.accountId === account.id).reduce((s, i) => s + i.amount, 0) ?? 0;
-    const spent = period?.expenses.filter((e) => e.accountId === account.id).reduce((s, e) => s + e.amount, 0) ?? 0;
+    const spent = period?.expenses.filter((e) => e.accountId === account.id && e.type !== "PENDING").reduce((s, e) => s + e.amount, 0) ?? 0;
     const instSpent = period?.installments.filter((i) => !i.isPaid && i.plan.accountId === account.id).reduce((s, i) => s + i.amount, 0) ?? 0;
-    return { account, balance: inc - spent - instSpent };
+    const pendingSpent = pendingExpenses.filter((e) => e.accountId === account.id).reduce((s, e) => s + e.amount, 0);
+    return { account, balance: inc - spent - instSpent, pendingSpent };
   });
   const totalPositive = accountBalances.filter((b) => b.balance > 0).reduce((s, b) => s + b.balance, 0);
   const totalNegative = accountBalances.filter((b) => b.balance < 0).reduce((s, b) => s + b.balance, 0);
@@ -179,6 +186,11 @@ export default function DashboardPage() {
                       {daysLeft} <span style={{ color: "var(--ink-3)" }}>días restantes de mes</span>
                     </span>
                   </div>
+                  {totalPending > 0 && (
+                    <div style={{ marginTop: 6, fontSize: 12, color: "var(--pending)", fontVariantNumeric: "tabular-nums" }}>
+                      ({dailyBudgetWithPending < 0 ? neg(dailyBudgetWithPending) : formatCLP(dailyBudgetWithPending)} con pendientes)
+                    </div>
+                  )}
                 </div>
                 <DailyDonut
                   income={totalIncome}
@@ -251,12 +263,20 @@ export default function DashboardPage() {
                       <span style={{ color: "var(--accent)" }}>{formatCLP(totalPositive)}</span>
                       <span>·</span>
                       <span style={{ color: "var(--danger)" }}>{totalNegative < 0 ? neg(totalNegative) : formatCLP(0)}</span>
+                      {accountBalances.some((b) => b.pendingSpent > 0) && (
+                        <>
+                          <span>·</span>
+                          <span style={{ color: "var(--pending)" }}>
+                            ({neg(totalNegative - accountBalances.reduce((s, b) => s + b.pendingSpent, 0))} c/ pend.)
+                          </span>
+                        </>
+                      )}
                     </div>
                   </div>
                   {showSaldo && (
                     <div style={{ borderTop: "1px solid var(--line-soft)" }}>
                       <ul style={{ margin: 0, padding: 0, listStyle: "none" }}>
-                        {accountBalances.map(({ account, balance }, idx) => (
+                        {accountBalances.map(({ account, balance, pendingSpent }, idx) => (
                           <li
                             key={account.id}
                             onClick={() => setBalanceEdit({ account, calculated: balance })}
@@ -271,9 +291,16 @@ export default function DashboardPage() {
                               <span style={{ width: 10, height: 10, borderRadius: 3, background: DOT_COLORS[idx % DOT_COLORS.length], flexShrink: 0, display: "block" }} />
                               {account.name}
                             </span>
-                            <span style={{ ...MONO, fontWeight: 500, fontSize: 13.5, color: balance > 0 ? "var(--accent)" : balance < 0 ? "var(--danger)" : "var(--ink-4)" }}>
-                              {balance < 0 ? neg(balance) : formatCLP(balance)}
-                            </span>
+                            <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 2 }}>
+                              <span style={{ ...MONO, fontWeight: 500, fontSize: 13.5, color: balance > 0 ? "var(--accent)" : balance < 0 ? "var(--danger)" : "var(--ink-4)" }}>
+                                {balance < 0 ? neg(balance) : formatCLP(balance)}
+                              </span>
+                              {pendingSpent > 0 && (
+                                <span style={{ ...MONO, fontSize: 11, color: "var(--pending)" }}>
+                                  ({balance - pendingSpent < 0 ? neg(balance - pendingSpent) : formatCLP(balance - pendingSpent)} c/ pend.)
+                                </span>
+                              )}
+                            </div>
                           </li>
                         ))}
                       </ul>
@@ -294,7 +321,7 @@ export default function DashboardPage() {
                     <span style={{ fontSize: 12, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--ink-2)", fontWeight: 600 }}>Detalle de gastos</span>
                   </div>
                   <span style={{ ...SERIF, fontSize: 22, letterSpacing: "-0.02em", color: "var(--danger)" }}>
-                    {formatCLP(totalFixed + totalSavings + totalVariable + totalPendingInstallments)}
+                    {formatCLP(totalFixed + totalSavings + totalVariable + totalPendingInstallments + totalPending)}
                   </span>
                 </div>
 
@@ -364,6 +391,48 @@ export default function DashboardPage() {
                       showDate
                       emptyText="Sin gastos variables aún"
                     />
+
+                    {/* Gastos pendientes */}
+                    {pendingExpenses.length > 0 && (
+                      <>
+                        <CatHeader label="Gastos pendientes" total={totalPending} barColor="var(--pending)" />
+                        <ul style={{ margin: 0, padding: 0, listStyle: "none" }}>
+                          {pendingExpenses.map((e, idx) => (
+                            <li
+                              key={e.id}
+                              onClick={() => setSelectedPending(e)}
+                              style={{
+                                display: "flex", alignItems: "flex-start", justifyContent: "space-between",
+                                gap: 12, padding: "14px 18px",
+                                borderTop: idx === 0 ? "none" : "1px solid var(--line-soft)",
+                                cursor: "pointer",
+                              }}
+                            >
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <span style={{ fontSize: 14.5, color: "var(--ink)" }}>{e.description}</span>
+                                {(e.account || e.categories.length > 0) && (
+                                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 6, fontSize: 11 }}>
+                                    {e.account && (
+                                      <span style={{ padding: "2px 8px", borderRadius: 99, background: "var(--pending-soft)", color: "var(--pending)" }}>
+                                        {e.account.name}
+                                      </span>
+                                    )}
+                                    {e.categories.map(({ category }) => (
+                                      <span key={category.id} style={{ padding: "2px 8px", borderRadius: 99, background: "var(--pending-soft)", color: "var(--pending)" }}>
+                                        {category.name}
+                                      </span>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                              <span style={{ ...MONO, fontSize: 14, fontWeight: 500, color: "var(--pending)", whiteSpace: "nowrap" }}>
+                                {formatCLP(e.amount)}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      </>
+                    )}
                   </div>
                 )}
               </div>
@@ -400,6 +469,14 @@ export default function DashboardPage() {
           periodId={period.id}
           accounts={activeAccounts}
           onClose={() => setShowIncomeModal(false)}
+          onSaved={fetchPeriod}
+        />
+      )}
+
+      {selectedPending && (
+        <PendingExpenseModal
+          expense={selectedPending}
+          onClose={() => setSelectedPending(null)}
           onSaved={fetchPeriod}
         />
       )}

@@ -31,7 +31,7 @@ const MONO_INPUT: React.CSSProperties = {
 export default function ExpenseModal({ periodId, accounts, defaultAccountId, onClose, onSaved }: Props) {
   const [description, setDescription] = useState("");
   const [amount, setAmount] = useState("");
-  const [type, setType] = useState<"FIXED" | "VARIABLE" | "SAVING">("VARIABLE");
+  const [type, setType] = useState<"FIXED" | "VARIABLE" | "SAVING" | "PENDING">("VARIABLE");
   const [accountId, setAccountId] = useState<string>(defaultAccountId ?? "");
   const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
@@ -92,6 +92,7 @@ export default function ExpenseModal({ periodId, accounts, defaultAccountId, onC
     { value: "VARIABLE", label: "Variable" },
     { value: "FIXED",    label: "Fijo" },
     { value: "SAVING",   label: "Ahorro" },
+    { value: "PENDING",  label: "Pendiente" },
   ] as const;
 
   return (
@@ -175,13 +176,15 @@ export default function ExpenseModal({ periodId, accounts, defaultAccountId, onC
           </div>
         )}
 
-        {/* Toggle cuotas */}
-        <div style={{ marginBottom: 14 }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 0", fontSize: 14, color: "var(--ink-2)" }}>
-            <span>Pagar en cuotas</span>
-            <Toggle on={isInstallment} onToggle={() => setIsInstallment((v) => !v)} />
+        {/* Toggle cuotas — oculto para gastos pendientes */}
+        {type !== "PENDING" && (
+          <div style={{ marginBottom: 14 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 0", fontSize: 14, color: "var(--ink-2)" }}>
+              <span>Pagar en cuotas</span>
+              <Toggle on={isInstallment} onToggle={() => setIsInstallment((v) => !v)} />
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Cuotas panel */}
         {isInstallment && (

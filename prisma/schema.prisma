@@ -89,6 +89,7 @@ enum ExpenseType {
   FIXED
   VARIABLE
   SAVING
+  PENDING
 }
 
 // Plan de cuotas (ej: bicicleta $120k en 3 cuotas)

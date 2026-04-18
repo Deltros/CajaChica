@@ -20,6 +20,8 @@
   --cool-soft:   #D5DDE6;
   --shadow:      0 1px 0 rgba(22,20,16,0.04), 0 6px 24px -16px rgba(22,20,16,0.18);
   --muted:       var(--ink-3);
+  --pending:     #3B8FCC;
+  --pending-soft:#D4EBF8;
 }
 
 /* ── Tema Midnight ── */
