@@ -30,7 +30,6 @@ const fraunces = Fraunces({
 export const metadata: Metadata = {
   title: "caja chica",
   description: "Mantenedor de gastos",
-  manifest: "/manifest.json",
   icons: { icon: "/favicon.svg" },
 };
 
