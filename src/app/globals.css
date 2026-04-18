@@ -1,26 +1,248 @@
 @import "tailwindcss";
 
+/* ── Design tokens: Cream (default) ── */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --bg:          #F4EFE6;
+  --bg-soft:     #EFE8DA;
+  --ink:         #161410;
+  --ink-2:       #3A342B;
+  --ink-3:       #7A7063;
+  --ink-4:       #B6AD9E;
+  --line:        #E3DBCA;
+  --line-soft:   #EAE3D2;
+  --card:        #FBF8F2;
+  --accent:      #4F5D2F;
+  --accent-soft: #DEE0C8;
+  --danger:      #B9391C;
+  --danger-soft: #F2DCCF;
+  --warn:        #A86A1C;
+  --cool:        #2E4A6B;
+  --cool-soft:   #D5DDE6;
+  --shadow:      0 1px 0 rgba(22,20,16,0.04), 0 6px 24px -16px rgba(22,20,16,0.18);
 }
 
+/* ── Tema Midnight ── */
+[data-theme="midnight"] {
+  --bg:          #14130F;
+  --bg-soft:     #1B1A15;
+  --ink:         #F4EFE6;
+  --ink-2:       #D8D1C2;
+  --ink-3:       #9A9181;
+  --ink-4:       #5E564B;
+  --line:        #2A2823;
+  --line-soft:   #242219;
+  --card:        #1C1B16;
+  --accent:      #C7D08A;
+  --accent-soft: #3B4228;
+  --danger:      #E38463;
+  --danger-soft: #4A2B1F;
+  --cool:        #9FB6D0;
+  --cool-soft:   #2A3648;
+  --shadow:      0 1px 0 rgba(0,0,0,0.4), 0 8px 30px -14px rgba(0,0,0,0.7);
+}
+
+/* ── Tema Paper ── */
+[data-theme="paper"] {
+  --bg:          #FAFAF7;
+  --bg-soft:     #F3F2EE;
+  --ink:         #0F0F0E;
+  --ink-2:       #2E2E2C;
+  --ink-3:       #6E6E6A;
+  --ink-4:       #B2B2AD;
+  --line:        #E6E5DF;
+  --line-soft:   #EFEEE8;
+  --card:        #FFFFFF;
+  --accent:      #2F5D3F;
+  --accent-soft: #D8E5DC;
+  --danger:      #A8341D;
+  --danger-soft: #F0DAD2;
+  --cool:        #25466B;
+  --cool-soft:   #D3DEEA;
+  --shadow:      0 1px 0 rgba(0,0,0,0.03), 0 8px 28px -18px rgba(0,0,0,0.14);
+}
+
+/* ── Acentos alternativos ── */
+[data-accent="coral"]  { --accent: #C4553A; --accent-soft: #F3DCD3; }
+[data-accent="indigo"] { --accent: #3B4478; --accent-soft: #D5D7E6; }
+
+/* ── Tailwind theme extension ── */
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans:  var(--font-geist);
+  --font-mono:  var(--font-geist-mono);
+  --font-serif: var(--font-instrument-serif);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+/* ── App shell layout (breakpoint 561px no disponible en Tailwind default) ── */
+.app-frame {
+  max-width: 520px;
+  margin: 0 auto;
+  padding: 24px;
+  min-height: 100dvh;
+  box-sizing: border-box;
+}
+@media (max-width: 560px) {
+  .app-frame { padding: 0; }
+}
+
+.app-shell {
+  background: var(--bg);
+  border-radius: 28px;
+  overflow: hidden;
+  position: relative;
+  min-height: 100dvh;
+}
+@media (min-width: 561px) {
+  .app-shell {
+    border: 1px solid var(--line);
+    box-shadow: var(--shadow);
+    min-height: 860px;
   }
 }
 
+.app-fab {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  width: 60px;
+  height: 60px;
+  border-radius: 999px;
+  background: var(--ink);
+  color: var(--bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 10px 30px -10px rgba(22,20,16,0.45);
+  z-index: 20;
+  transition: transform 0.2s, background 0.2s;
+}
+.app-fab:hover {
+  transform: translateY(-2px) scale(1.03);
+  background: var(--accent);
+}
+@media (min-width: 561px) {
+  .app-fab {
+    position: absolute;
+    right: 28px;
+    bottom: 28px;
+  }
+}
+
+/* ── Modal / Sheet (breakpoint 700px + animation no hacible inline) ── */
+@keyframes slideUp {
+  from { transform: translateY(30px); opacity: 0; }
+  to   { transform: none; opacity: 1; }
+}
+
+.modal-scrim {
+  position: fixed; inset: 0;
+  background: rgba(22,20,16,0.45);
+  display: flex; align-items: flex-end; justify-content: center;
+  z-index: 50;
+  backdrop-filter: blur(3px);
+}
+
+.modal-sheet {
+  background: var(--card);
+  width: 100%; max-width: 480px;
+  border-radius: 24px 24px 0 0;
+  padding: 22px;
+  animation: slideUp 0.28s cubic-bezier(.2,.9,.3,1);
+  border: 1px solid var(--line);
+  border-bottom: 0;
+  max-height: 85vh;
+  overflow-y: auto;
+  box-sizing: border-box;
+}
+
+@media (min-width: 700px) {
+  .modal-scrim  { align-items: center; }
+  .modal-sheet  { border-radius: 24px; border-bottom: 1px solid var(--line); }
+}
+
+/* ── Dash structural classes ── */
+.dash-header {
+  padding: 18px 22px 10px;
+}
+.dash-month-nav {
+  padding: 6px 22px 0;
+}
+
+/* ── Page structural classes (cuentas, categorias) ── */
+.page-header {
+  padding: 18px 22px 10px;
+}
+.page-body {
+  padding: 10px 22px 40px;
+}
+
+/* ── Desktop layout (≥900px) ── */
+@media (min-width: 900px) {
+  .app-frame {
+    max-width: none;
+    padding: 0;
+  }
+  .app-shell {
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+    min-height: 100dvh;
+  }
+  .dash-header {
+    padding: 14px 48px;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: var(--bg);
+    border-bottom: 1px solid var(--line-soft);
+  }
+  .dash-month-nav {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px 48px 0;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  .dash-body {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px 48px 60px;
+    display: grid;
+    grid-template-columns: 460px 1fr;
+    gap: 28px;
+    align-items: start;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  .app-fab {
+    position: fixed;
+    right: 32px;
+    bottom: 32px;
+  }
+  .page-header {
+    padding: 14px 48px;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: var(--bg);
+    border-bottom: 1px solid var(--line-soft);
+  }
+  .page-body {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 24px 48px 60px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+}
+
+/* ── Base body ── */
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-geist), system-ui, sans-serif;
+  font-feature-settings: "ss01", "cv11", "tnum";
+  -webkit-font-smoothing: antialiased;
+  min-height: 100dvh;
 }

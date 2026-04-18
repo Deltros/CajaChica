@@ -12,6 +12,17 @@ type Props = {
   onSaved: () => void;
 };
 
+const FIELD_LABEL: React.CSSProperties = {
+  display: "block", fontSize: 11, letterSpacing: "0.14em",
+  textTransform: "uppercase", color: "var(--ink-3)", marginBottom: 6,
+};
+const FIELD_INPUT: React.CSSProperties = {
+  width: "100%", fontFamily: "inherit", fontSize: 15,
+  background: "var(--bg)", color: "var(--ink)",
+  border: "1px solid var(--line)", borderRadius: 14,
+  padding: "12px 14px", outline: "none", boxSizing: "border-box",
+};
+
 export default function IncomeModal({ periodId, accounts, onClose, onSaved }: Props) {
   const [accountId, setAccountId] = useState(accounts[0]?.id ?? "");
   const [amount, setAmount] = useState("");
@@ -66,86 +77,135 @@ export default function IncomeModal({ periodId, accounts, onClose, onSaved }: Pr
   }
 
   return (
-    <Modal title="Agregar ingreso" onClose={onClose}>
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Cuenta</label>
+    <Modal title="Nuevo ingreso" onClose={onClose}>
+      <form onSubmit={handleSubmit}>
+
+        {/* Cuenta */}
+        <div style={{ marginBottom: 14 }}>
+          <label style={FIELD_LABEL}>Cuenta</label>
           {accounts.length > 0 ? (
             <select
               value={accountId}
               onChange={(e) => setAccountId(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              style={{ ...FIELD_INPUT, appearance: "auto" }}
             >
               {accounts.map((a) => (
-                <option key={a.id} value={a.id}>{a.name} ({a.type === "BANK" ? "Banco" : "Efectivo"})</option>
+                <option key={a.id} value={a.id}>
+                  {a.name} · {a.type === "BANK" ? "banco" : "efectivo"}
+                </option>
               ))}
             </select>
           ) : (
-            <p className="text-sm text-gray-400">No hay cuentas. Crea una abajo.</p>
+            <p style={{ fontSize: 13, color: "var(--ink-4)", margin: 0 }}>
+              No hay cuentas. Crea una abajo.
+            </p>
           )}
           <button
             type="button"
-            onClick={() => setShowNewAccount(!showNewAccount)}
-            className="mt-1 text-xs text-blue-600 hover:underline"
+            onClick={() => setShowNewAccount((v) => !v)}
+            style={{ display: "inline-block", marginTop: 8, fontSize: 12, color: "var(--accent)", background: "none", border: "none", cursor: "pointer", fontWeight: 500, padding: 0 }}
           >
             + Nueva cuenta
           </button>
         </div>
 
+        {/* Nueva cuenta inline panel */}
         {showNewAccount && (
-          <div className="bg-gray-50 rounded-lg p-3 space-y-2">
-            <input
-              type="text"
-              placeholder="Nombre de la cuenta"
-              value={newAccountName}
-              onChange={(e) => setNewAccountName(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-            />
-            <div className="flex gap-2">
-              <button type="button" onClick={() => setNewAccountType("BANK")}
-                className={`flex-1 py-1.5 text-xs rounded-lg border ${newAccountType === "BANK" ? "bg-blue-600 text-white border-blue-600" : "bg-white text-gray-600 border-gray-200"}`}>
-                Banco
-              </button>
-              <button type="button" onClick={() => setNewAccountType("CASH")}
-                className={`flex-1 py-1.5 text-xs rounded-lg border ${newAccountType === "CASH" ? "bg-blue-600 text-white border-blue-600" : "bg-white text-gray-600 border-gray-200"}`}>
-                Efectivo
-              </button>
+          <div style={{ marginBottom: 14, background: "var(--bg-soft)", border: "1px solid var(--line)", borderRadius: 14, padding: "14px 16px", display: "flex", flexDirection: "column", gap: 10 }}>
+            <div>
+              <label style={FIELD_LABEL}>Nombre de la cuenta</label>
+              <input
+                type="text"
+                placeholder="ej: Santander Débito"
+                value={newAccountName}
+                onChange={(e) => setNewAccountName(e.target.value)}
+                style={FIELD_INPUT}
+              />
             </div>
-            <button type="button" onClick={createAccount}
-              className="w-full py-1.5 bg-gray-700 text-white text-xs rounded-lg">
+            <div style={{
+              display: "flex", border: "1px solid var(--line)", borderRadius: 14,
+              padding: 3, gap: 3, background: "var(--bg)",
+            }}>
+              {(["BANK", "CASH"] as const).map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => setNewAccountType(t)}
+                  style={{
+                    flex: 1, padding: "9px 8px", border: "none", borderRadius: 11,
+                    fontFamily: "inherit", fontSize: 13, cursor: "pointer",
+                    background: newAccountType === t ? "var(--card)" : "transparent",
+                    color: newAccountType === t ? "var(--ink)" : "var(--ink-3)",
+                    fontWeight: newAccountType === t ? 500 : 400,
+                    boxShadow: newAccountType === t ? "0 1px 2px rgba(0,0,0,0.05)" : "none",
+                  }}
+                >
+                  {t === "BANK" ? "Banco" : "Efectivo"}
+                </button>
+              ))}
+            </div>
+            <button
+              type="button"
+              onClick={createAccount}
+              style={{ padding: "10px 14px", borderRadius: 14, border: "none", background: "var(--ink)", color: "var(--bg)", cursor: "pointer", fontFamily: "inherit", fontSize: 13, fontWeight: 500 }}
+            >
               Crear cuenta
             </button>
           </div>
         )}
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Monto (CLP)</label>
+        {/* Monto */}
+        <div style={{ marginBottom: 14 }}>
+          <label style={FIELD_LABEL}>Monto · CLP</label>
           <input
             type="number"
+            inputMode="numeric"
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             required
             min={1}
+            placeholder="$0"
+            style={{
+              ...FIELD_INPUT,
+              fontFamily: "var(--font-geist-mono), ui-monospace, monospace",
+              fontVariantNumeric: "tabular-nums",
+            }}
           />
         </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Descripción (opcional)</label>
+
+        {/* Descripción */}
+        <div style={{ marginBottom: 14 }}>
+          <label style={FIELD_LABEL}>
+            Descripción{" "}
+            <span style={{ textTransform: "none", letterSpacing: 0, color: "var(--ink-4)", fontSize: 11 }}>opcional</span>
+          </label>
           <input
             type="text"
             value={label}
             onChange={(e) => setLabel(e.target.value)}
-            placeholder="ej: Sueldo, Sobra mes anterior"
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="ej: Sueldo, sobra mes anterior"
+            style={FIELD_INPUT}
           />
         </div>
-        {error && <p className="text-red-500 text-sm">{error}</p>}
-        <div className="flex gap-2 pt-2">
-          <button type="button" onClick={onClose} className="flex-1 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50">
+
+        {error && (
+          <p style={{ fontSize: 13, color: "var(--danger)", marginBottom: 12 }}>{error}</p>
+        )}
+
+        <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
+          <button
+            type="button"
+            onClick={onClose}
+            style={{ flex: 1, padding: 13, borderRadius: 14, border: "1px solid var(--line)", background: "var(--bg)", color: "var(--ink-2)", cursor: "pointer", fontFamily: "inherit", fontSize: 14, fontWeight: 500 }}
+          >
             Cancelar
           </button>
-          <button type="submit" disabled={loading} className="flex-1 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50">
-            {loading ? "Guardando..." : "Guardar"}
+          <button
+            type="submit"
+            disabled={loading}
+            style={{ flex: 1, padding: 13, borderRadius: 14, border: "none", background: "var(--ink)", color: "var(--bg)", cursor: "pointer", fontFamily: "inherit", fontSize: 14, fontWeight: 500, opacity: loading ? 0.5 : 1 }}
+          >
+            {loading ? "Guardando…" : "Guardar"}
           </button>
         </div>
       </form>

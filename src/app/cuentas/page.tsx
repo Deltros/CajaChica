@@ -1,11 +1,40 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import HamburgerMenu from "@/components/HamburgerMenu";
+import { useRouter } from "next/navigation";
 
 type Account = { id: string; name: string; type: string; isActive: boolean; isDefault: boolean };
 
+const SERIF: React.CSSProperties = { fontFamily: "var(--font-instrument-serif), serif" };
+
+function Toggle({ on, onToggle, label }: { on: boolean; onToggle: () => void; label?: string }) {
+  return (
+    <div
+      onClick={onToggle}
+      role="switch"
+      aria-checked={on}
+      aria-label={label}
+      style={{
+        width: 36, height: 20, borderRadius: 99,
+        background: on ? "var(--accent)" : "var(--line)",
+        position: "relative", cursor: "pointer",
+        transition: "background 0.2s", flexShrink: 0,
+      }}
+    >
+      <span style={{
+        position: "absolute", top: 2, left: 2,
+        width: 16, height: 16, borderRadius: 99,
+        background: "var(--card)",
+        transition: "transform 0.2s",
+        transform: on ? "translateX(16px)" : "none",
+        display: "block",
+      }} />
+    </div>
+  );
+}
+
 export default function CuentasPage() {
+  const router = useRouter();
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -69,125 +98,167 @@ export default function CuentasPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <HamburgerMenu />
-          <h1 className="text-lg font-semibold text-gray-800">Mantenedor de tarjetas</h1>
-        </div>
-        <button
-          onClick={() => setShowNewForm(v => !v)}
-          className="text-sm font-medium text-blue-600 hover:text-blue-800"
-        >
-          + Agregar
-        </button>
-      </header>
+    <div className="app-frame">
+      <div className="app-shell">
 
-      <div className="max-w-2xl mx-auto px-4 py-6 space-y-4">
-        {/* Formulario nueva cuenta */}
-        {showNewForm && (
-          <section className="bg-white rounded-xl shadow-sm p-4 space-y-3">
-            <h2 className="text-sm font-semibold text-gray-700">Nueva tarjeta / cuenta</h2>
-            <input
-              autoFocus
-              type="text"
-              placeholder="Nombre (ej: Banco Santander Débito)"
-              value={newName}
-              onChange={(e) => setNewName(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") createAccount(); if (e.key === "Escape") setShowNewForm(false); }}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <div className="flex gap-2">
-              {(["BANK", "CASH"] as const).map((t) => (
-                <button
-                  key={t}
-                  type="button"
-                  onClick={() => setNewType(t)}
-                  className={`flex-1 py-2 rounded-lg text-xs font-medium border transition-colors ${newType === t ? "bg-blue-600 text-white border-blue-600" : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"}`}
-                >
-                  {t === "BANK" ? "Banco" : "Efectivo"}
-                </button>
-              ))}
-            </div>
-            <div className="flex gap-2">
-              <button onClick={() => setShowNewForm(false)} className="flex-1 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50">
-                Cancelar
-              </button>
-              <button onClick={createAccount} disabled={creating || !newName.trim()} className="flex-1 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50">
-                {creating ? "Guardando..." : "Guardar"}
-              </button>
-            </div>
-          </section>
-        )}
+        {/* ── Header ── */}
+        <header className="page-header" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+          <button
+            onClick={() => router.back()}
+            aria-label="Volver"
+            style={{ width: 40, height: 40, borderRadius: 999, background: "var(--card)", border: "1px solid var(--line)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "var(--ink)", flexShrink: 0 }}
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" style={{ width: 18, height: 18 }}>
+              <path d="M15 6l-6 6 6 6" />
+            </svg>
+          </button>
+          <div style={{ ...SERIF, fontSize: 22, letterSpacing: "-0.02em", color: "var(--ink)" }}>Cuentas</div>
+          <div style={{ width: 40 }} />
+        </header>
 
-        {loading ? (
-          <p className="text-center text-gray-400 py-10">Cargando...</p>
-        ) : accounts.length === 0 ? (
-          <p className="text-center text-gray-400 py-10">No hay cuentas registradas</p>
-        ) : (
-          <section className="bg-white rounded-xl shadow-sm overflow-hidden">
-            <div className="px-4 py-3 border-b border-gray-100">
-              <p className="text-xs text-gray-400">Las cuentas inactivas no aparecen en los selectores al agregar ingresos o gastos</p>
-            </div>
-            <ul className="divide-y divide-gray-50">
-              {accounts.map((account) => (
-                <li key={account.id} className={`px-4 py-3 space-y-2 ${!account.isActive ? "opacity-50" : ""}`}>
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="flex-1 min-w-0">
+        {/* ── Body ── */}
+        <div className="page-body" style={{}}>
+          <p style={{ fontSize: 13, color: "var(--ink-3)", lineHeight: 1.5, margin: "6px 2px 18px" }}>
+            Las cuentas inactivas no aparecen en los selectores al agregar ingresos o gastos.
+          </p>
+
+          {loading ? (
+            <p style={{ textAlign: "center", color: "var(--ink-4)", fontSize: 13, padding: "20px 0" }}>Cargando…</p>
+          ) : (
+            <>
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                {accounts.map((account) => (
+                  <div
+                    key={account.id}
+                    style={{
+                      background: account.isDefault
+                        ? "linear-gradient(0deg, var(--accent-soft) 0%, var(--card) 60%)"
+                        : "var(--card)",
+                      border: `1px solid ${account.isDefault ? "var(--accent-soft)" : "var(--line)"}`,
+                      borderRadius: 20,
+                      padding: "16px 18px",
+                      display: "flex", alignItems: "center", justifyContent: "space-between",
+                      gap: 12,
+                      opacity: account.isActive ? 1 : 0.5,
+                    }}
+                  >
+                    {/* Left */}
+                    <div style={{ flex: 1, minWidth: 0 }}>
                       {editingId === account.id ? (
-                        <div className="flex items-center gap-2">
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
                           <input
                             autoFocus
                             type="text"
                             value={editingName}
                             onChange={(e) => setEditingName(e.target.value)}
                             onKeyDown={(e) => { if (e.key === "Enter") saveName(account.id); if (e.key === "Escape") setEditingId(null); }}
-                            className="flex-1 border border-blue-300 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            style={{ flex: 1, border: "1px solid var(--line)", borderRadius: 10, padding: "6px 10px", fontSize: 14, background: "var(--bg)", color: "var(--ink)", outline: "none", fontFamily: "inherit" }}
                           />
-                          <button onClick={() => saveName(account.id)} className="text-xs bg-blue-600 text-white px-2 py-1 rounded-lg">OK</button>
-                          <button onClick={() => setEditingId(null)} className="text-xs text-gray-400 hover:text-gray-600">✕</button>
+                          <button onClick={() => saveName(account.id)} style={{ fontSize: 12, padding: "6px 12px", borderRadius: 10, background: "var(--ink)", color: "var(--bg)", border: "none", cursor: "pointer", fontWeight: 500 }}>OK</button>
+                          <button onClick={() => setEditingId(null)} style={{ fontSize: 18, color: "var(--ink-4)", background: "none", border: "none", cursor: "pointer", lineHeight: 1 }}>×</button>
                         </div>
                       ) : (
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-sm font-medium text-gray-800">{account.name}</span>
-                          <span className="text-xs text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4, flexWrap: "wrap" }}>
+                          <span style={{ fontSize: 15, fontWeight: 500, color: "var(--ink)" }}>{account.name}</span>
+                          <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 99, background: "var(--bg-soft)", border: "1px solid var(--line)", color: "var(--ink-3)" }}>
                             {account.type === "BANK" ? "Banco" : "Efectivo"}
                           </span>
                           <button
                             onClick={() => { setEditingId(account.id); setEditingName(account.name); }}
-                            className="text-xs text-blue-500 hover:text-blue-700"
+                            style={{ fontSize: 12, color: "var(--accent)", background: "none", border: "none", cursor: "pointer", fontWeight: 500, padding: 0 }}
                           >
                             Editar
                           </button>
                         </div>
                       )}
+                      <p style={{ fontSize: 11.5, color: "var(--ink-3)", margin: 0 }}>
+                        {account.isDefault ? "Cuenta por defecto en gastos" : "Sin rol asignado"}
+                      </p>
                     </div>
+
+                    {/* Right */}
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+                      <Toggle
+                        on={account.isActive}
+                        onToggle={() => toggleActive(account.id, account.isActive)}
+                        label={`${account.name} activa`}
+                      />
+                      {account.isDefault ? (
+                        <span style={{ fontSize: 11, padding: "4px 10px", borderRadius: 99, background: "var(--accent)", color: "var(--bg)", fontWeight: 500, whiteSpace: "nowrap" }}>
+                          Predeterminada
+                        </span>
+                      ) : (
+                        <button
+                          onClick={() => setDefault(account.id)}
+                          style={{ fontSize: 11, padding: "4px 10px", borderRadius: 99, background: "var(--bg-soft)", border: "1px solid var(--line)", color: "var(--ink-2)", cursor: "pointer", fontWeight: 500, whiteSpace: "nowrap" }}
+                        >
+                          Predeterminar
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Nueva cuenta */}
+              {showNewForm ? (
+                <div style={{ marginTop: 16, background: "var(--card)", border: "1px solid var(--line)", borderRadius: 20, padding: "16px 18px", display: "flex", flexDirection: "column", gap: 12 }}>
+                  <input
+                    autoFocus
+                    type="text"
+                    placeholder="Nombre (ej: Banco Santander Débito)"
+                    value={newName}
+                    onChange={(e) => setNewName(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") createAccount(); if (e.key === "Escape") setShowNewForm(false); }}
+                    style={{ width: "100%", fontFamily: "inherit", fontSize: 15, background: "var(--bg)", color: "var(--ink)", border: "1px solid var(--line)", borderRadius: 14, padding: "12px 14px", outline: "none", boxSizing: "border-box" }}
+                  />
+                  <div style={{ display: "flex", border: "1px solid var(--line)", borderRadius: 14, padding: 3, gap: 3, background: "var(--bg)" }}>
+                    {(["BANK", "CASH"] as const).map((t) => (
+                      <button
+                        key={t}
+                        type="button"
+                        onClick={() => setNewType(t)}
+                        style={{
+                          flex: 1, padding: "9px 8px", border: "none", borderRadius: 11,
+                          fontFamily: "inherit", fontSize: 13, cursor: "pointer",
+                          background: newType === t ? "var(--card)" : "transparent",
+                          color: newType === t ? "var(--ink)" : "var(--ink-3)",
+                          fontWeight: newType === t ? 500 : 400,
+                          boxShadow: newType === t ? "0 1px 2px rgba(0,0,0,0.05)" : "none",
+                        }}
+                      >
+                        {t === "BANK" ? "Banco" : "Efectivo"}
+                      </button>
+                    ))}
+                  </div>
+                  <div style={{ display: "flex", gap: 10 }}>
                     <button
-                      onClick={() => toggleActive(account.id, account.isActive)}
-                      className={`shrink-0 relative w-10 h-5 rounded-full transition-colors ${account.isActive ? "bg-blue-600" : "bg-gray-300"}`}
+                      onClick={() => setShowNewForm(false)}
+                      style={{ flex: 1, padding: 13, borderRadius: 14, border: "1px solid var(--line)", background: "var(--bg)", color: "var(--ink-2)", cursor: "pointer", fontFamily: "inherit", fontSize: 14 }}
                     >
-                      <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${account.isActive ? "translate-x-5" : "translate-x-0.5"}`} />
+                      Cancelar
+                    </button>
+                    <button
+                      onClick={createAccount}
+                      disabled={creating || !newName.trim()}
+                      style={{ flex: 1, padding: 13, borderRadius: 14, border: "none", background: "var(--ink)", color: "var(--bg)", cursor: "pointer", fontFamily: "inherit", fontSize: 14, fontWeight: 500, opacity: (creating || !newName.trim()) ? 0.5 : 1 }}
+                    >
+                      {creating ? "Guardando…" : "Guardar"}
                     </button>
                   </div>
-                  {/* Fila de cuenta por defecto */}
-                  <div className="flex items-center justify-between pl-0.5">
-                    <span className="text-xs text-gray-400">Cuenta por defecto en gastos</span>
-                    {account.isDefault ? (
-                      <span className="text-xs font-semibold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">Predeterminada</span>
-                    ) : (
-                      <button
-                        onClick={() => setDefault(account.id)}
-                        className="text-xs text-gray-400 hover:text-blue-600 hover:underline"
-                      >
-                        Establecer como predeterminada
-                      </button>
-                    )}
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </section>
-        )}
+                </div>
+              ) : (
+                <button
+                  onClick={() => setShowNewForm(true)}
+                  style={{ width: "100%", marginTop: 16, display: "flex", alignItems: "center", gap: 10, background: "transparent", border: "1.5px dashed var(--line)", borderRadius: 20, padding: "14px 18px", cursor: "pointer", color: "var(--ink-3)", fontFamily: "inherit", fontSize: 14 }}
+                >
+                  <span style={{ width: 24, height: 24, borderRadius: 99, background: "var(--bg-soft)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, flexShrink: 0 }}>+</span>
+                  Nueva cuenta
+                </button>
+              )}
+            </>
+          )}
+        </div>
       </div>
     </div>
   );

@@ -1,11 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import HamburgerMenu from "@/components/HamburgerMenu";
+import { useRouter } from "next/navigation";
 
 type Category = { id: string; name: string };
 
+const SERIF: React.CSSProperties = { fontFamily: "var(--font-instrument-serif), serif" };
+const DOT_COLORS = ["var(--accent)", "var(--cool)", "#C2883D", "var(--ink-4)", "var(--danger)"];
+
 export default function CategoriasPage() {
+  const router = useRouter();
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [newName, setNewName] = useState("");
@@ -46,59 +50,82 @@ export default function CategoriasPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white border-b border-gray-200 px-4 py-3 flex items-center gap-3">
-        <HamburgerMenu />
-        <h1 className="text-lg font-semibold text-gray-800">Categorías de gastos</h1>
-      </header>
+    <div className="app-frame">
+      <div className="app-shell">
 
-      <div className="max-w-2xl mx-auto px-4 py-6 space-y-4">
-        {/* Crear nueva categoría */}
-        <section className="bg-white rounded-xl shadow-sm p-4">
-          <p className="text-xs text-gray-400 mb-3">Crea tags para clasificar tus gastos. Puedes asignar múltiples categorías a cada gasto.</p>
-          <div className="flex gap-2">
+        {/* ── Header ── */}
+        <header className="page-header" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+          <button
+            onClick={() => router.back()}
+            aria-label="Volver"
+            style={{ width: 40, height: 40, borderRadius: 999, background: "var(--card)", border: "1px solid var(--line)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "var(--ink)", flexShrink: 0 }}
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" style={{ width: 18, height: 18 }}>
+              <path d="M15 6l-6 6 6 6" />
+            </svg>
+          </button>
+          <div style={{ ...SERIF, fontSize: 22, letterSpacing: "-0.02em", color: "var(--ink)" }}>Categorías</div>
+          <div style={{ width: 40 }} />
+        </header>
+
+        {/* ── Body ── */}
+        <div className="page-body" style={{}}>
+          <p style={{ fontSize: 13, color: "var(--ink-3)", lineHeight: 1.5, margin: "6px 2px 18px" }}>
+            Etiquetas para clasificar tus gastos. Puedes asignar{" "}
+            <em style={{ ...SERIF, fontStyle: "italic", color: "var(--ink-2)" }}>varias</em>{" "}
+            a un mismo gasto.
+          </p>
+
+          {/* Row de agregar */}
+          <div style={{ display: "flex", gap: 8, background: "var(--card)", border: "1px solid var(--line)", borderRadius: 20, padding: 10, marginBottom: 16 }}>
             <input
               type="text"
-              placeholder="ej: mamá, deporte, fiesta..."
+              placeholder="ej: mamá, deporte, fiesta…"
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter") createCategory(); }}
-              className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               maxLength={50}
+              style={{ flex: 1, fontFamily: "inherit", fontSize: 14, background: "transparent", border: 0, outline: "none", padding: "8px 10px", color: "var(--ink)" }}
             />
             <button
               onClick={createCategory}
               disabled={creating || !newName.trim()}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 shrink-0"
+              style={{ padding: "11px 18px", borderRadius: 14, border: "none", background: "var(--ink)", color: "var(--bg)", cursor: "pointer", fontFamily: "inherit", fontSize: 13, fontWeight: 500, opacity: (creating || !newName.trim()) ? 0.5 : 1, flexShrink: 0 }}
             >
               Agregar
             </button>
           </div>
-          {error && <p className="text-red-500 text-xs mt-2">{error}</p>}
-        </section>
 
-        {/* Lista de categorías */}
-        {loading ? (
-          <p className="text-center text-gray-400 py-6">Cargando...</p>
-        ) : categories.length === 0 ? (
-          <p className="text-center text-gray-400 py-6">No hay categorías aún</p>
-        ) : (
-          <section className="bg-white rounded-xl shadow-sm overflow-hidden">
-            <ul className="divide-y divide-gray-50">
-              {categories.map((cat) => (
-                <li key={cat.id} className="flex items-center justify-between px-4 py-3">
-                  <span className="text-sm text-gray-800 bg-gray-100 px-2.5 py-1 rounded-full">{cat.name}</span>
+          {error && (
+            <p style={{ fontSize: 12, color: "var(--danger)", margin: "-10px 2px 14px" }}>{error}</p>
+          )}
+
+          {/* Lista */}
+          {loading ? (
+            <p style={{ textAlign: "center", color: "var(--ink-4)", fontSize: 13, padding: "20px 0" }}>Cargando…</p>
+          ) : categories.length === 0 ? (
+            <p style={{ textAlign: "center", color: "var(--ink-4)", fontSize: 13, padding: "20px 0" }}>No hay categorías aún</p>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {categories.map((cat, idx) => (
+                <div
+                  key={cat.id}
+                  style={{ background: "var(--card)", border: "1px solid var(--line)", borderRadius: 16, padding: "12px 16px", display: "flex", alignItems: "center", gap: 12 }}
+                >
+                  <span style={{ width: 10, height: 10, borderRadius: 3, background: DOT_COLORS[idx % DOT_COLORS.length], flexShrink: 0, display: "block" }} />
+                  <span style={{ fontSize: 14.5, color: "var(--ink)", flex: 1 }}>{cat.name}</span>
                   <button
                     onClick={() => deleteCategory(cat.id)}
-                    className="text-gray-300 hover:text-red-400 text-xs transition-colors"
+                    aria-label={`Eliminar ${cat.name}`}
+                    style={{ width: 26, height: 26, borderRadius: 99, border: "1px solid var(--line)", background: "var(--bg)", color: "var(--ink-4)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, flexShrink: 0 }}
                   >
-                    ✕
+                    ×
                   </button>
-                </li>
+                </div>
               ))}
-            </ul>
-          </section>
-        )}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

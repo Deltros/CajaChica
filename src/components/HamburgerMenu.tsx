@@ -19,42 +19,82 @@ export default function HamburgerMenu() {
     <>
       <button
         onClick={() => setOpen(true)}
-        className="flex flex-col gap-1.5 p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
+        style={{
+          width: 40, height: 40, borderRadius: 999,
+          background: "var(--card)", border: "1px solid var(--line)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          cursor: "pointer", color: "var(--ink)", flexShrink: 0,
+        }}
         aria-label="Menú"
       >
-        <span className="block w-5 h-0.5 bg-gray-600 rounded" />
-        <span className="block w-5 h-0.5 bg-gray-600 rounded" />
-        <span className="block w-5 h-0.5 bg-gray-600 rounded" />
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" style={{ width: 18, height: 18 }}>
+          <path d="M4 7h16M4 12h16M4 17h16" />
+        </svg>
       </button>
 
       {open && (
-        <div className="fixed inset-0 z-50 flex">
-          <div className="absolute inset-0 bg-black/40" onClick={() => setOpen(false)} />
-          <div className="relative w-72 max-w-[80vw] bg-white h-full flex flex-col shadow-xl">
-            <div className="flex items-center justify-between px-4 py-4 border-b border-gray-100">
-              <span className="font-semibold text-gray-800">CajaChica</span>
-              <button onClick={() => setOpen(false)} className="text-gray-400 hover:text-gray-600 text-xl leading-none">✕</button>
+        <div style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex" }}>
+          <div
+            style={{ position: "absolute", inset: 0, background: "rgba(22,20,16,0.4)" }}
+            onClick={() => setOpen(false)}
+          />
+          <div style={{
+            position: "relative", width: 272, maxWidth: "80vw",
+            background: "var(--card)", height: "100%",
+            display: "flex", flexDirection: "column",
+            borderRight: "1px solid var(--line)",
+            boxShadow: "var(--shadow)",
+          }}>
+            <div style={{
+              display: "flex", alignItems: "center", justifyContent: "space-between",
+              padding: "18px 20px", borderBottom: "1px solid var(--line)",
+            }}>
+              <span style={{ fontFamily: "var(--font-instrument-serif)", fontSize: 22, letterSpacing: "-0.01em" }}>
+                caja · chica
+              </span>
+              <button
+                onClick={() => setOpen(false)}
+                style={{
+                  width: 32, height: 32, borderRadius: 99,
+                  border: "1px solid var(--line)", background: "var(--bg)",
+                  color: "var(--ink-3)", cursor: "pointer",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  fontSize: 18,
+                }}
+                aria-label="Cerrar menú"
+              >
+                ×
+              </button>
             </div>
-            <nav className="flex-1 px-2 py-3 space-y-1">
-              {NAV_ITEMS.map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  onClick={() => setOpen(false)}
-                  className={`flex items-center px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                    pathname === item.href
-                      ? "bg-blue-50 text-blue-700"
-                      : "text-gray-700 hover:bg-gray-100"
-                  }`}
-                >
-                  {item.label}
-                </Link>
-              ))}
+            <nav style={{ flex: 1, padding: "12px 10px", display: "flex", flexDirection: "column", gap: 4 }}>
+              {NAV_ITEMS.map((item) => {
+                const isActive = pathname === item.href;
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={() => setOpen(false)}
+                    style={{
+                      display: "flex", alignItems: "center",
+                      padding: "10px 14px", borderRadius: 14,
+                      fontSize: 14, fontWeight: 500, textDecoration: "none",
+                      background: isActive ? "var(--accent-soft)" : "transparent",
+                      color: isActive ? "var(--accent)" : "var(--ink-2)",
+                    }}
+                  >
+                    {item.label}
+                  </Link>
+                );
+              })}
             </nav>
-            <div className="px-4 py-4 border-t border-gray-100">
+            <div style={{ padding: "16px 10px", borderTop: "1px solid var(--line)" }}>
               <button
                 onClick={() => signOut({ callbackUrl: "/login" })}
-                className="w-full text-left text-sm text-gray-500 hover:text-gray-700 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors"
+                style={{
+                  width: "100%", textAlign: "left", fontSize: 14,
+                  color: "var(--ink-3)", padding: "10px 14px", borderRadius: 14,
+                  background: "none", border: "none", cursor: "pointer",
+                }}
               >
                 Cerrar sesión
               </button>

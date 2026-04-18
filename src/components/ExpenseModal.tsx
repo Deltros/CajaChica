@@ -12,6 +12,22 @@ type Props = {
   onSaved: () => void;
 };
 
+const FIELD_LABEL: React.CSSProperties = {
+  display: "block", fontSize: 11, letterSpacing: "0.14em",
+  textTransform: "uppercase", color: "var(--ink-3)", marginBottom: 6,
+};
+const FIELD_INPUT: React.CSSProperties = {
+  width: "100%", fontFamily: "inherit", fontSize: 15,
+  background: "var(--bg)", color: "var(--ink)",
+  border: "1px solid var(--line)", borderRadius: 14,
+  padding: "12px 14px", outline: "none", boxSizing: "border-box",
+};
+const MONO_INPUT: React.CSSProperties = {
+  ...FIELD_INPUT,
+  fontFamily: "var(--font-geist-mono), ui-monospace, monospace",
+  fontVariantNumeric: "tabular-nums",
+};
+
 export default function ExpenseModal({ periodId, accounts, defaultAccountId, onClose, onSaved }: Props) {
   const [description, setDescription] = useState("");
   const [amount, setAmount] = useState("");
@@ -20,14 +36,14 @@ export default function ExpenseModal({ periodId, accounts, defaultAccountId, onC
   const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [isInstallment, setIsInstallment] = useState(false);
-
-  useEffect(() => {
-    fetch("/api/categories").then(r => r.json()).then(setCategories).catch(() => {});
-  }, []);
   const [totalInstallments, setTotalInstallments] = useState("2");
   const [startThisMonth, setStartThisMonth] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    fetch("/api/categories").then((r) => r.json()).then(setCategories).catch(() => {});
+  }, []);
 
   const amountNum = parseInt(amount || "0");
   const installmentsNum = parseInt(totalInstallments || "1");
@@ -41,7 +57,6 @@ export default function ExpenseModal({ periodId, accounts, defaultAccountId, onC
     setError("");
 
     let res: Response;
-
     if (isInstallment) {
       res = await fetch("/api/installments", {
         method: "POST",
@@ -73,27 +88,40 @@ export default function ExpenseModal({ periodId, accounts, defaultAccountId, onC
     onClose();
   }
 
-  return (
-    <Modal title="Agregar gasto" onClose={onClose}>
-      <form onSubmit={handleSubmit} className="space-y-4">
+  const EXPENSE_TYPES = [
+    { value: "VARIABLE", label: "Variable" },
+    { value: "FIXED",    label: "Fijo" },
+    { value: "SAVING",   label: "Ahorro" },
+  ] as const;
 
-        {/* Tipo de gasto (solo si no es en cuotas) */}
+  return (
+    <Modal title="Nuevo gasto" onClose={onClose}>
+      <form onSubmit={handleSubmit}>
+
+        {/* Tipo */}
         {!isInstallment && (
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Tipo</label>
-            <div className="grid grid-cols-3 gap-2">
-              {(["VARIABLE", "FIXED", "SAVING"] as const).map((t) => (
+          <div style={{ marginBottom: 14 }}>
+            <label style={FIELD_LABEL}>Tipo</label>
+            <div style={{
+              display: "flex", border: "1px solid var(--line)", borderRadius: 14,
+              padding: 3, gap: 3, background: "var(--bg)",
+            }}>
+              {EXPENSE_TYPES.map(({ value, label }) => (
                 <button
-                  key={t}
+                  key={value}
                   type="button"
-                  onClick={() => setType(t)}
-                  className={`py-2 rounded-lg text-xs font-medium border transition-colors ${
-                    type === t
-                      ? "bg-blue-600 text-white border-blue-600"
-                      : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
-                  }`}
+                  onClick={() => setType(value)}
+                  style={{
+                    flex: 1, padding: "9px 8px", border: "none", borderRadius: 11,
+                    fontFamily: "inherit", fontSize: 13, cursor: "pointer",
+                    background: type === value ? "var(--card)" : "transparent",
+                    color: type === value ? "var(--ink)" : "var(--ink-3)",
+                    fontWeight: type === value ? 500 : 400,
+                    boxShadow: type === value ? "0 1px 2px rgba(0,0,0,0.05)" : "none",
+                    transition: "background 0.15s, color 0.15s",
+                  }}
                 >
-                  {t === "VARIABLE" ? "Variable" : t === "FIXED" ? "Fijo" : "Ahorro"}
+                  {label}
                 </button>
               ))}
             </div>
@@ -101,40 +129,43 @@ export default function ExpenseModal({ periodId, accounts, defaultAccountId, onC
         )}
 
         {/* Descripción */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Descripción</label>
+        <div style={{ marginBottom: 14 }}>
+          <label style={FIELD_LABEL}>Descripción</label>
           <input
             type="text"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             required
+            style={FIELD_INPUT}
           />
         </div>
 
         {/* Monto */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            {isInstallment ? "Monto total (CLP)" : "Monto (CLP)"}
-          </label>
+        <div style={{ marginBottom: 14 }}>
+          <label style={FIELD_LABEL}>{isInstallment ? "Monto total · CLP" : "Monto · CLP"}</label>
           <input
             type="number"
+            inputMode="numeric"
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             required
             min={1}
+            placeholder="$0"
+            style={MONO_INPUT}
           />
         </div>
 
-        {/* Cuenta (opcional) */}
+        {/* Cuenta */}
         {accounts.length > 0 && (
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Cuenta <span className="text-gray-400 font-normal">(opcional)</span></label>
+          <div style={{ marginBottom: 14 }}>
+            <label style={FIELD_LABEL}>
+              Cuenta{" "}
+              <span style={{ textTransform: "none", letterSpacing: 0, color: "var(--ink-4)", fontSize: 11 }}>opcional</span>
+            </label>
             <select
               value={accountId}
               onChange={(e) => setAccountId(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+              style={{ ...FIELD_INPUT, appearance: "auto" }}
             >
               <option value="">Sin cuenta</option>
               {accounts.map((a) => (
@@ -145,72 +176,80 @@ export default function ExpenseModal({ periodId, accounts, defaultAccountId, onC
         )}
 
         {/* Toggle cuotas */}
-        <label className="flex items-center gap-3 cursor-pointer select-none">
-          <div
-            onClick={() => setIsInstallment((v) => !v)}
-            className={`relative w-10 h-5 rounded-full transition-colors ${isInstallment ? "bg-blue-600" : "bg-gray-300"}`}
-          >
-            <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${isInstallment ? "translate-x-5" : "translate-x-0.5"}`} />
+        <div style={{ marginBottom: 14 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 0", fontSize: 14, color: "var(--ink-2)" }}>
+            <span>Pagar en cuotas</span>
+            <Toggle on={isInstallment} onToggle={() => setIsInstallment((v) => !v)} />
           </div>
-          <span className="text-sm text-gray-700">Pagar en cuotas</span>
-        </label>
+        </div>
 
-        {/* Campos de cuotas */}
+        {/* Cuotas panel */}
         {isInstallment && (
-          <div className="space-y-3 border border-blue-100 bg-blue-50 rounded-xl p-3">
+          <div style={{ marginBottom: 14, background: "var(--bg-soft)", border: "1px solid var(--line)", borderRadius: 14, padding: "14px 16px", display: "flex", flexDirection: "column", gap: 12 }}>
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Número de cuotas</label>
+              <label style={FIELD_LABEL}>Número de cuotas</label>
               <input
                 type="number"
                 value={totalInstallments}
                 onChange={(e) => setTotalInstallments(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                 required
                 min={2}
+                style={MONO_INPUT}
               />
             </div>
-
             {amountNum > 0 && installmentsNum > 1 && (
-              <p className="text-xs text-blue-700">
+              <p style={{ fontSize: 12.5, color: "var(--accent)", margin: 0, fontVariantNumeric: "tabular-nums" }}>
                 <strong>{new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP" }).format(perInstallment)}</strong> / mes
                 {amountNum % installmentsNum !== 0 && (
-                  <span className="text-blue-500"> (redondeado)</span>
+                  <span style={{ color: "var(--ink-3)" }}> (redondeado)</span>
                 )}
               </p>
             )}
-
-            <label className="flex items-start gap-2 cursor-pointer">
+            <label style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer", fontSize: 14, color: "var(--ink-2)" }}>
               <input
                 type="checkbox"
                 checked={startThisMonth}
                 onChange={(e) => setStartThisMonth(e.target.checked)}
-                className="mt-0.5 accent-blue-600"
+                style={{ marginTop: 2 }}
               />
               <div>
-                <p className="text-sm text-gray-700 font-medium">Primera cuota este mes</p>
-                <p className="text-xs text-gray-500">
+                <p style={{ margin: "0 0 2px", fontWeight: 500, color: "var(--ink)" }}>Primera cuota este mes</p>
+                <p style={{ margin: 0, fontSize: 12, color: "var(--ink-3)" }}>
                   {startThisMonth
                     ? "La cuota 1 se descuenta del mes actual"
-                    : "La cuota 1 se descuenta del mes que viene (compra después del cierre)"}
+                    : "La cuota 1 se descuenta del mes que viene"}
                 </p>
               </div>
             </label>
           </div>
         )}
 
-        {/* Categorías (opcional, solo gastos normales) */}
+        {/* Categorías */}
         {!isInstallment && categories.length > 0 && (
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">Categorías <span className="text-gray-400 font-normal">(opcional)</span></label>
-            <div className="flex flex-wrap gap-2">
+          <div style={{ marginBottom: 14 }}>
+            <label style={FIELD_LABEL}>
+              Categorías{" "}
+              <span style={{ textTransform: "none", letterSpacing: 0, color: "var(--ink-4)", fontSize: 11 }}>opcional · múltiples</span>
+            </label>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
               {categories.map((cat) => {
-                const selected = selectedCategories.includes(cat.id);
+                const sel = selectedCategories.includes(cat.id);
                 return (
                   <button
                     key={cat.id}
                     type="button"
-                    onClick={() => setSelectedCategories(prev => selected ? prev.filter(id => id !== cat.id) : [...prev, cat.id])}
-                    className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${selected ? "bg-blue-600 text-white border-blue-600" : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"}`}
+                    onClick={() =>
+                      setSelectedCategories((prev) =>
+                        sel ? prev.filter((id) => id !== cat.id) : [...prev, cat.id]
+                      )
+                    }
+                    style={{
+                      fontFamily: "inherit", fontSize: 12.5,
+                      background: sel ? "var(--accent)" : "var(--bg-soft)",
+                      color: sel ? "var(--bg)" : "var(--ink-2)",
+                      border: sel ? "1px solid var(--accent)" : "1px solid var(--line)",
+                      borderRadius: 99, padding: "7px 14px", cursor: "pointer",
+                    }}
                   >
                     {cat.name}
                   </button>
@@ -220,22 +259,24 @@ export default function ExpenseModal({ periodId, accounts, defaultAccountId, onC
           </div>
         )}
 
-        {error && <p className="text-red-500 text-sm">{error}</p>}
+        {error && (
+          <p style={{ fontSize: 13, color: "var(--danger)", marginBottom: 12 }}>{error}</p>
+        )}
 
-        <div className="flex gap-2 pt-2">
+        <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
           <button
             type="button"
             onClick={onClose}
-            className="flex-1 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50"
+            style={{ flex: 1, padding: 13, borderRadius: 14, border: "1px solid var(--line)", background: "var(--bg)", color: "var(--ink-2)", cursor: "pointer", fontFamily: "inherit", fontSize: 14, fontWeight: 500 }}
           >
             Cancelar
           </button>
           <button
             type="submit"
             disabled={loading}
-            className="flex-1 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
+            style={{ flex: 1, padding: 13, borderRadius: 14, border: "none", background: "var(--ink)", color: "var(--bg)", cursor: "pointer", fontFamily: "inherit", fontSize: 14, fontWeight: 500, opacity: loading ? 0.5 : 1 }}
           >
-            {loading ? "Guardando..." : "Guardar"}
+            {loading ? "Guardando…" : "Guardar"}
           </button>
         </div>
       </form>
@@ -243,16 +284,74 @@ export default function ExpenseModal({ periodId, accounts, defaultAccountId, onC
   );
 }
 
-export function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
+/* ── Shared Modal shell ── */
+export function Modal({
+  title, eyebrow, onClose, children,
+}: {
+  title: string;
+  eyebrow?: string;
+  onClose: () => void;
+  children: React.ReactNode;
+}) {
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl w-full max-w-sm shadow-xl">
-        <div className="flex items-center justify-between px-4 py-4 border-b border-gray-100">
-          <h2 className="font-semibold text-gray-800">{title}</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">✕</button>
+    <div
+      className="modal-scrim"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div className="modal-sheet">
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 18, gap: 12 }}>
+          <div>
+            {eyebrow && (
+              <div style={{ fontSize: 10, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--ink-3)", marginBottom: 4 }}>
+                {eyebrow}
+              </div>
+            )}
+            <h3 style={{ fontFamily: "var(--font-instrument-serif), serif", fontSize: 30, letterSpacing: "-0.02em", lineHeight: 1, margin: 0, color: "var(--ink)" }}>
+              {title}
+            </h3>
+          </div>
+          <button
+            onClick={onClose}
+            aria-label="Cerrar"
+            style={{
+              width: 32, height: 32, borderRadius: 99,
+              border: "1px solid var(--line)", background: "var(--bg)",
+              color: "var(--ink-3)", cursor: "pointer", fontSize: 18,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              flexShrink: 0,
+            }}
+          >
+            ×
+          </button>
         </div>
-        <div className="px-4 py-4 max-h-[80vh] overflow-y-auto">{children}</div>
+        {children}
       </div>
+    </div>
+  );
+}
+
+/* ── Toggle pill ── */
+function Toggle({ on, onToggle }: { on: boolean; onToggle: () => void }) {
+  return (
+    <div
+      onClick={onToggle}
+      role="switch"
+      aria-checked={on}
+      style={{
+        width: 36, height: 20, borderRadius: 99,
+        background: on ? "var(--accent)" : "var(--line)",
+        position: "relative", cursor: "pointer",
+        transition: "background 0.2s", flexShrink: 0,
+      }}
+    >
+      <span style={{
+        position: "absolute", top: 2, left: 2,
+        width: 16, height: 16, borderRadius: 99,
+        background: "var(--card)",
+        transition: "transform 0.2s",
+        transform: on ? "translateX(16px)" : "none",
+        display: "block",
+      }} />
     </div>
   );
 }
