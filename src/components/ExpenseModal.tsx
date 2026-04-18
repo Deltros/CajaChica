@@ -1,22 +1,29 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 type Account = { id: string; name: string };
 
 type Props = {
   periodId: string;
   accounts: Account[];
+  defaultAccountId?: string;
   onClose: () => void;
   onSaved: () => void;
 };
 
-export default function ExpenseModal({ periodId, accounts, onClose, onSaved }: Props) {
+export default function ExpenseModal({ periodId, accounts, defaultAccountId, onClose, onSaved }: Props) {
   const [description, setDescription] = useState("");
   const [amount, setAmount] = useState("");
   const [type, setType] = useState<"FIXED" | "VARIABLE" | "SAVING">("VARIABLE");
-  const [accountId, setAccountId] = useState<string>("");
+  const [accountId, setAccountId] = useState<string>(defaultAccountId ?? "");
+  const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [isInstallment, setIsInstallment] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/categories").then(r => r.json()).then(setCategories).catch(() => {});
+  }, []);
   const [totalInstallments, setTotalInstallments] = useState("2");
   const [startThisMonth, setStartThisMonth] = useState(true);
   const [loading, setLoading] = useState(false);
@@ -52,7 +59,7 @@ export default function ExpenseModal({ periodId, accounts, onClose, onSaved }: P
       res = await fetch("/api/expenses", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ periodId, description, amount: amountNum, type, accountId: accountId || undefined }),
+        body: JSON.stringify({ periodId, description, amount: amountNum, type, accountId: accountId || undefined, categoryIds: selectedCategories }),
       });
     }
 
@@ -188,6 +195,28 @@ export default function ExpenseModal({ periodId, accounts, onClose, onSaved }: P
                 </p>
               </div>
             </label>
+          </div>
+        )}
+
+        {/* Categorías (opcional, solo gastos normales) */}
+        {!isInstallment && categories.length > 0 && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">Categorías <span className="text-gray-400 font-normal">(opcional)</span></label>
+            <div className="flex flex-wrap gap-2">
+              {categories.map((cat) => {
+                const selected = selectedCategories.includes(cat.id);
+                return (
+                  <button
+                    key={cat.id}
+                    type="button"
+                    onClick={() => setSelectedCategories(prev => selected ? prev.filter(id => id !== cat.id) : [...prev, cat.id])}
+                    className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${selected ? "bg-blue-600 text-white border-blue-600" : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"}`}
+                  >
+                    {cat.name}
+                  </button>
+                );
+              })}
+            </div>
           </div>
         )}
 

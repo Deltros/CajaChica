@@ -17,6 +17,7 @@ model User {
   accounts     Account[]
   periods      MonthlyPeriod[]
   installments InstallmentPlan[]
+  categories   Category[]
 }
 
 // Cuentas bancarias / efectivo del usuario
@@ -26,6 +27,7 @@ model Account {
   name           String
   type           AccountType @default(BANK)
   isActive       Boolean     @default(true)
+  isDefault      Boolean     @default(false)
   createdAt      DateTime    @default(now())
 
   user         User              @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -78,8 +80,9 @@ model Expense {
   date        DateTime    @default(now())
   createdAt   DateTime    @default(now())
 
-  period  MonthlyPeriod @relation(fields: [periodId], references: [id], onDelete: Cascade)
-  account Account?      @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  period     MonthlyPeriod      @relation(fields: [periodId], references: [id], onDelete: Cascade)
+  account    Account?           @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  categories ExpenseCategory[]
 }
 
 enum ExpenseType {
@@ -105,6 +108,29 @@ model InstallmentPlan {
   user        User                @relation(fields: [userId], references: [id], onDelete: Cascade)
   account     Account?            @relation(fields: [accountId], references: [id], onDelete: SetNull)
   periodItems PeriodInstallment[]
+}
+
+// Categorías de gastos (tags)
+model Category {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  createdAt DateTime @default(now())
+
+  user     User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expenses ExpenseCategory[]
+
+  @@unique([userId, name])
+}
+
+model ExpenseCategory {
+  expenseId  String
+  categoryId String
+
+  expense  Expense  @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@id([expenseId, categoryId])
 }
 
 // Cuota de un plan asociada a un período mensual

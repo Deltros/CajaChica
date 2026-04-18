@@ -8,6 +8,7 @@ import { signOut } from "next-auth/react";
 const NAV_ITEMS = [
   { href: "/dashboard", label: "Inicio" },
   { href: "/cuentas", label: "Mantenedor de tarjetas" },
+  { href: "/categorias", label: "Categorías de gastos" },
 ];
 
 export default function HamburgerMenu() {

@@ -6,9 +6,9 @@ import ExpenseModal, { Modal } from "@/components/ExpenseModal";
 import IncomeModal from "@/components/IncomeModal";
 import HamburgerMenu from "@/components/HamburgerMenu";
 
-type Account = { id: string; name: string; type: string; isActive: boolean };
+type Account = { id: string; name: string; type: string; isActive: boolean; isDefault: boolean };
 type Income = { id: string; accountId: string; amount: number; label: string | null; account: Account };
-type Expense = { id: string; description: string; amount: number; type: string; date: string; accountId: string | null };
+type Expense = { id: string; description: string; amount: number; type: string; date: string; accountId: string | null; account: { name: string } | null; categories: { category: { id: string; name: string } }[] };
 type PeriodInstallment = { id: string; planId: string; amount: number; isPaid: boolean; plan: { name: string; totalInstallments: number; paidInstallments: number; totalAmount: number; startYear: number; startMonth: number; accountId: string | null } };
 type Period = { id: string; incomes: Income[]; expenses: Expense[]; installments: PeriodInstallment[] };
 
@@ -28,6 +28,9 @@ export default function DashboardPage() {
   const [balanceEdit, setBalanceEdit] = useState<{ account: Account; calculated: number } | null>(null);
   const [balanceEditValue, setBalanceEditValue] = useState("");
   const [balanceEditLoading, setBalanceEditLoading] = useState(false);
+  const [showIngresos, setShowIngresos] = useState(false);
+  const [showSaldo, setShowSaldo] = useState(false);
+  const [showGastos, setShowGastos] = useState(false);
 
   const fetchPeriod = useCallback(async () => {
     setLoading(true);
@@ -151,78 +154,101 @@ export default function DashboardPage() {
 
             {/* Ingresos */}
             <section className="bg-white rounded-xl shadow-sm overflow-hidden">
-              <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
-                <h2 className="font-semibold text-gray-700 text-sm">Ingresos</h2>
-                <button onClick={() => setShowIncomeModal(true)} className="text-blue-600 text-sm font-medium">+ Agregar</button>
-              </div>
-              {period?.incomes.length === 0 ? (
-                <p className="text-center text-gray-400 text-sm py-4">Sin ingresos registrados</p>
-              ) : (
-                <ul className="divide-y divide-gray-50">
-                  {period?.incomes.map((i) => (
-                    <li key={i.id} className="flex items-center justify-between px-4 py-3">
-                      <div>
-                        <p className="text-sm font-medium text-gray-800">{i.account.name}</p>
-                        {i.label && <p className="text-xs text-gray-400">{i.label}</p>}
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <span className="text-sm font-semibold text-green-600">{formatCLP(i.amount)}</span>
-                        <button onClick={() => deleteIncome(i.id)} className="text-gray-300 hover:text-red-400 text-xs">✕</button>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
+              <button
+                onClick={() => setShowIngresos(v => !v)}
+                className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors"
+              >
+                <div className="flex items-center gap-2">
+                  <span className="text-gray-400 text-xs">{showIngresos ? "▾" : "▸"}</span>
+                  <h2 className="font-semibold text-gray-700 text-sm">Ingresos</h2>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="text-sm font-semibold text-green-600">{formatCLP(totalIncome)}</span>
+                  <span
+                    onClick={(e) => { e.stopPropagation(); setShowIncomeModal(true); }}
+                    className="text-blue-600 text-sm font-medium hover:underline"
+                  >+ Agregar</span>
+                </div>
+              </button>
+              {showIngresos && (
+                period?.incomes.length === 0 ? (
+                  <p className="text-center text-gray-400 text-sm py-4 border-t border-gray-100">Sin ingresos registrados</p>
+                ) : (
+                  <IncomeList items={period?.incomes ?? []} onDelete={deleteIncome} />
+                )
               )}
             </section>
 
             {/* Saldo en cuentas */}
-            {activeAccounts.length > 0 && (
-              <section className="bg-white rounded-xl shadow-sm overflow-hidden">
-                <div className="px-4 py-3 border-b border-gray-100">
-                  <h2 className="font-semibold text-gray-700 text-sm">Saldo en cuentas</h2>
-                  <p className="text-xs text-gray-400 mt-0.5">Actualiza el monto real cuando revises tus cuentas</p>
-                </div>
-                <ul className="divide-y divide-gray-50">
-                  {activeAccounts.map((account) => {
-                    const income = period?.incomes.filter((i) => i.accountId === account.id).reduce((s, i) => s + i.amount, 0) ?? 0;
-                    const spent = period?.expenses.filter((e) => e.accountId === account.id).reduce((s, e) => s + e.amount, 0) ?? 0;
-                    const installmentSpent = period?.installments.filter((i) => !i.isPaid && i.plan.accountId === account.id).reduce((s, i) => s + i.amount, 0) ?? 0;
-                    const balance = income - spent - installmentSpent;
-                    return (
-                      <li
-                        key={account.id}
-                        onClick={() => { setBalanceEdit({ account, calculated: balance }); setBalanceEditValue(String(balance)); }}
-                        className="flex items-center justify-between px-4 py-3 hover:bg-gray-50 cursor-pointer transition-colors"
-                      >
-                        <p className="text-sm font-medium text-gray-800">{account.name}</p>
-                        <span className={`text-sm font-semibold ${balance >= 0 ? "text-blue-700" : "text-red-600"}`}>
-                          {formatCLP(balance)}
-                        </span>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </section>
-            )}
+            {activeAccounts.length > 0 && (() => {
+              const balances = activeAccounts.map((account) => {
+                const income = period?.incomes.filter((i) => i.accountId === account.id).reduce((s, i) => s + i.amount, 0) ?? 0;
+                const spent = period?.expenses.filter((e) => e.accountId === account.id).reduce((s, e) => s + e.amount, 0) ?? 0;
+                const installmentSpent = period?.installments.filter((i) => !i.isPaid && i.plan.accountId === account.id).reduce((s, i) => s + i.amount, 0) ?? 0;
+                return { account, balance: income - spent - installmentSpent };
+              });
+              const totalPositive = balances.filter(b => b.balance > 0).reduce((s, b) => s + b.balance, 0);
+              const totalNegative = balances.filter(b => b.balance < 0).reduce((s, b) => s + b.balance, 0);
+              return (
+                <section className="bg-white rounded-xl shadow-sm overflow-hidden">
+                  <button
+                    onClick={() => setShowSaldo(v => !v)}
+                    className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-gray-400 text-xs">{showSaldo ? "▾" : "▸"}</span>
+                      <h2 className="font-semibold text-gray-700 text-sm">Saldo en cuentas</h2>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs font-semibold">
+                      <span className="text-green-600">{formatCLP(totalPositive)}</span>
+                      <span className="text-gray-300">|</span>
+                      <span className="text-red-500">{formatCLP(totalNegative)}</span>
+                    </div>
+                  </button>
+                  {showSaldo && (
+                    <ul className="divide-y divide-gray-50 border-t border-gray-100">
+                      {balances.map(({ account, balance }) => (
+                        <li
+                          key={account.id}
+                          onClick={() => { setBalanceEdit({ account, calculated: balance }); setBalanceEditValue(String(balance)); }}
+                          className="flex items-center justify-between px-4 py-3 hover:bg-gray-50 cursor-pointer transition-colors"
+                        >
+                          <p className="text-sm font-medium text-gray-800">{account.name}</p>
+                          <span className={`text-sm font-semibold ${balance >= 0 ? "text-blue-700" : "text-red-600"}`}>
+                            {formatCLP(balance)}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </section>
+              );
+            })()}
 
             {/* Detalle de gastos */}
             <section className="bg-white rounded-xl shadow-sm overflow-hidden">
-              <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
-                <h2 className="font-semibold text-gray-800 text-sm">Detalle de gastos</h2>
+              <button
+                onClick={() => setShowGastos(v => !v)}
+                className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors"
+              >
+                <div className="flex items-center gap-2">
+                  <span className="text-gray-400 text-xs">{showGastos ? "▾" : "▸"}</span>
+                  <h2 className="font-semibold text-gray-800 text-sm">Detalle de gastos</h2>
+                </div>
                 <div className="flex items-center gap-3">
-                  <span className="text-sm font-semibold text-gray-600">
+                  <span className="text-sm font-semibold text-red-600">
                     {formatCLP(totalFixed + totalSavings + totalVariable + totalPendingInstallments)}
                   </span>
-                  <button
-                    onClick={() => setShowExpenseModal(true)}
-                    className="bg-blue-600 text-white text-xs font-medium px-3 py-1.5 rounded-lg hover:bg-blue-700 transition-colors"
+                  <span
+                    onClick={(e) => { e.stopPropagation(); setShowExpenseModal(true); }}
+                    className="w-7 h-7 flex items-center justify-center rounded-full bg-blue-600 text-white hover:bg-blue-700 transition-colors text-lg leading-none"
                   >
-                    + Agregar
-                  </button>
+                    +
+                  </span>
                 </div>
-              </div>
+              </button>
 
-              <div className="divide-y divide-gray-50">
+              {showGastos && <div className="divide-y divide-gray-50 border-t border-gray-100">
                 {/* Fijos */}
                 {fixedExpenses.length > 0 && (
                   <CategoryBlock
@@ -318,16 +344,16 @@ export default function DashboardPage() {
                     showDate
                   />
                 </CategoryBlock>
-              </div>
+              </div>}
             </section>
 
             {/* Botón agregar gasto */}
-            <div className="pb-6">
+            <div className="pb-6 flex justify-center">
               <button
                 onClick={() => setShowExpenseModal(true)}
-                className="w-full bg-blue-600 text-white py-3 rounded-xl text-sm font-medium hover:bg-blue-700 transition-colors"
+                className="w-14 h-14 rounded-full bg-blue-600 text-white text-3xl flex items-center justify-center shadow-lg hover:bg-blue-700 hover:shadow-xl transition-all"
               >
-                + Agregar gasto
+                +
               </button>
             </div>
           </>
@@ -339,6 +365,7 @@ export default function DashboardPage() {
         <ExpenseModal
           periodId={period.id}
           accounts={activeAccounts}
+          defaultAccountId={activeAccounts.find(a => a.isDefault)?.id}
           onClose={() => setShowExpenseModal(false)}
           onSaved={fetchPeriod}
         />
@@ -503,44 +530,75 @@ function ExpenseList({
 
   return (
     <ul>
-      {items.map((e) => (
-        <li key={e.id} className="group flex items-center justify-between px-4 py-3 border-t border-gray-50 first:border-0 hover:bg-gray-50 transition-colors">
-          <div className="flex-1 min-w-0 pr-3">
-            <p className="text-sm font-medium text-gray-800 truncate">{e.description}</p>
-            {showDate && (
-              <p className="text-xs text-gray-400 mt-0.5">
-                {new Date(e.date).toLocaleDateString("es-CL", { day: "numeric", month: "short" })}
-              </p>
-            )}
-          </div>
+      {items.map((e) => {
+        const hasMeta = showDate || e.account || e.categories.length > 0;
+        return (
+          <li key={e.id} className="group flex items-start justify-between px-4 py-3 border-t border-gray-50 first:border-0 hover:bg-gray-50 transition-colors">
+            <div className="flex-1 min-w-0 pr-3">
+              <p className="text-sm font-medium text-gray-800 truncate">{e.description}</p>
+              {hasMeta && (
+                <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                  {showDate && (
+                    <span className="text-xs text-gray-400">
+                      {new Date(e.date).toLocaleDateString("es-CL", { day: "numeric", month: "short" })}
+                    </span>
+                  )}
+                  {e.account && (
+                    <span className="text-xs text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded-full">
+                      {e.account.name}
+                    </span>
+                  )}
+                  {e.categories.map(({ category }) => (
+                    <span key={category.id} className="text-xs text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-full">
+                      {category.name}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
 
-          {confirmId === e.id ? (
+            {confirmId === e.id ? (
+              <div className="flex items-center gap-2 shrink-0 pt-0.5">
+                <span className="text-xs text-gray-500">¿Eliminar?</span>
+                <button onClick={() => setConfirmId(null)} className="text-xs px-2 py-1 rounded-md bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors">No</button>
+                <button onClick={() => { setConfirmId(null); onDelete(e.id); }} className="text-xs px-2 py-1 rounded-md bg-red-500 text-white hover:bg-red-600 transition-colors">Sí</button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 shrink-0 pt-0.5">
+                <span className={`text-sm font-semibold ${amountColor}`}>{formatCLP(e.amount)}</span>
+                <button
+                  onClick={() => setConfirmId(e.id)}
+                  className="opacity-0 group-hover:opacity-100 w-6 h-6 flex items-center justify-center rounded-full text-gray-300 hover:bg-red-50 hover:text-red-400 transition-all text-xs"
+                >✕</button>
+              </div>
+            )}
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+function IncomeList({ items, onDelete }: { items: { id: string; amount: number; label: string | null; account: { name: string } }[]; onDelete: (id: string) => void }) {
+  const [confirmId, setConfirmId] = useState<string | null>(null);
+  return (
+    <ul className="divide-y divide-gray-50 border-t border-gray-100">
+      {items.map((i) => (
+        <li key={i.id} className="group flex items-center justify-between px-4 py-3">
+          <div>
+            <p className="text-sm font-medium text-gray-800">{i.account.name}</p>
+            {i.label && <p className="text-xs text-gray-400">{i.label}</p>}
+          </div>
+          {confirmId === i.id ? (
             <div className="flex items-center gap-2 shrink-0">
               <span className="text-xs text-gray-500">¿Eliminar?</span>
-              <button
-                onClick={() => setConfirmId(null)}
-                className="text-xs px-2 py-1 rounded-md bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors"
-              >
-                No
-              </button>
-              <button
-                onClick={() => { setConfirmId(null); onDelete(e.id); }}
-                className="text-xs px-2 py-1 rounded-md bg-red-500 text-white hover:bg-red-600 transition-colors"
-              >
-                Sí
-              </button>
+              <button onClick={() => setConfirmId(null)} className="text-xs px-2 py-1 rounded-md bg-gray-100 text-gray-600 hover:bg-gray-200">No</button>
+              <button onClick={() => { setConfirmId(null); onDelete(i.id); }} className="text-xs px-2 py-1 rounded-md bg-red-500 text-white hover:bg-red-600">Sí</button>
             </div>
           ) : (
-            <div className="flex items-center gap-2 shrink-0">
-              <div className="w-28 text-right">
-                <span className={`text-sm font-semibold ${amountColor}`}>{formatCLP(e.amount)}</span>
-              </div>
-              <button
-                onClick={() => setConfirmId(e.id)}
-                className="opacity-0 group-hover:opacity-100 w-6 h-6 flex items-center justify-center rounded-full text-gray-300 hover:bg-red-50 hover:text-red-400 transition-all text-xs"
-              >
-                ✕
-              </button>
+            <div className="flex items-center gap-3">
+              <span className="text-sm font-semibold text-green-600">{formatCLP(i.amount)}</span>
+              <button onClick={() => setConfirmId(i.id)} className="opacity-0 group-hover:opacity-100 w-6 h-6 flex items-center justify-center rounded-full text-gray-300 hover:bg-red-50 hover:text-red-400 transition-all text-xs">✕</button>
             </div>
           )}
         </li>
