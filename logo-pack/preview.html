@@ -1,0 +1,308 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<title>Logo pack — preview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@400;600&family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #F4EFE6;
+    --card: #FBF8F2;
+    --ink: #161410;
+    --ink-2: #3A342B;
+    --ink-3: #7A7063;
+    --ink-4: #B6AD9E;
+    --line: #E3DBCA;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Geist", system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    padding: 56px 48px 80px;
+  }
+  .wrap { max-width: 1200px; margin: 0 auto; }
+  .eyebrow { font-size: 11px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--ink-3); font-weight: 600; }
+  h1 { font-family: Fraunces, serif; font-size: 56px; font-weight: 600; letter-spacing: -0.02em; margin: 8px 0 8px; line-height: 1; }
+  .sub { color: var(--ink-3); font-size: 14.5px; line-height: 1.55; max-width: 60ch; margin: 0; }
+  section { margin-top: 56px; }
+  .grid { display: grid; gap: 24px; }
+  .card {
+    background: var(--card); border: 1px solid var(--line);
+    border-radius: 18px; padding: 32px;
+    display: flex; flex-direction: column; gap: 16px;
+  }
+  .card .body {
+    min-height: 160px; display: flex; align-items: center; justify-content: center;
+    padding: 16px 8px;
+  }
+  .card.dark { background: #161410; color: #F4EFE6; border-color: #2A2720; }
+  .card.dark .ink { color: #F4EFE6; }
+  .card.dark .muted { color: #B6AD9E; }
+  .caption { font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--ink-3); font-weight: 600; }
+  .note { font-size: 13px; color: var(--ink-2); line-height: 1.5; }
+  .row { display: flex; align-items: center; gap: 32px; flex-wrap: wrap; }
+
+  /* Lockup */
+  .lockup { display: inline-flex; align-items: center; gap: 14px; color: var(--ink); line-height: 1; }
+  .lockup .mark { flex-shrink: 0; }
+  .lockup .text { display: flex; flex-direction: column; gap: 5px; }
+  .lockup .word { font-family: Fraunces, serif; font-weight: 600; letter-spacing: -0.02em; font-size: 28px; }
+  .lockup .tag { font-family: Geist, sans-serif; font-weight: 500; font-size: 9.5px; letter-spacing: 0.22em; color: var(--ink-3); text-transform: uppercase; }
+  .dark .lockup { color: #F4EFE6; }
+  .dark .lockup .tag { color: #B6AD9E; }
+
+  /* File card */
+  .files { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; margin-top: 24px; }
+  .file {
+    background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+    padding: 18px 20px; display: flex; flex-direction: column; gap: 6px;
+  }
+  .file .name { font-family: "Geist Mono", monospace; font-size: 13px; font-weight: 500; color: var(--ink); }
+  .file .desc { font-size: 12.5px; color: var(--ink-3); line-height: 1.5; }
+
+  pre {
+    background: #161410; color: #E3DBCA; border-radius: 14px;
+    padding: 24px 28px; overflow-x: auto; font-size: 13px; line-height: 1.6;
+    font-family: "Geist Mono", monospace;
+  }
+  pre .c { color: #7A7063; }
+  pre .s { color: #C7D08A; }
+  pre .k { color: #E8B77A; }
+
+  /* mock header */
+  .mockhdr {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 22px; border-radius: 14px;
+    background: #FBF8F2; border: 1px solid var(--line);
+    width: 100%;
+  }
+  .mockhdr .nav { display: flex; gap: 24px; font-size: 13px; color: var(--ink-3); }
+  .mockhdr .nav .active { color: var(--ink); font-weight: 600; }
+  .mockhdr .avatar { width: 32px; height: 32px; border-radius: 99px; background: #4F5D2F; color: #F4EFE6; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="eyebrow">Logo pack · entregable</div>
+  <h1>caja chica</h1>
+  <p class="sub">Paquete listo para implementar. Incluye icono, lockup horizontal, favicon y componente React. Hereda <code style="background:#E3DBCA;padding:1px 6px;border-radius:4px;font-size:12.5px">currentColor</code>, así que se adapta a modo claro y oscuro sin variantes extra.</p>
+
+  <!-- ── Previews ───────────────────────────── -->
+  <section>
+    <div class="eyebrow" style="margin-bottom:16px">Previews</div>
+    <div class="grid" style="grid-template-columns: 1.2fr 0.8fr 1fr;">
+
+      <div class="card">
+        <div class="caption">Lockup horizontal · fondo crema</div>
+        <div class="body">
+          <div class="lockup" style="font-size:40px">
+            <svg class="mark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="44" height="44">
+              <g fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="6" y="18" width="52" height="40" rx="4"/>
+                <line x1="6" y1="30" x2="58" y2="30"/>
+                <line x1="22" y1="11" x2="42" y2="11"/>
+                <line x1="22" y1="14.5" x2="42" y2="14.5"/>
+              </g>
+            </svg>
+            <div class="text">
+              <span class="word">caja chica</span>
+              <span class="tag">Mantenedor de gastos</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="caption">Mark sola</div>
+        <div class="body">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="80" height="80" style="color:var(--ink)">
+            <g fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="6" y="18" width="52" height="40" rx="4"/>
+              <line x1="6" y1="30" x2="58" y2="30"/>
+              <line x1="22" y1="11" x2="42" y2="11"/>
+              <line x1="22" y1="14.5" x2="42" y2="14.5"/>
+            </g>
+          </svg>
+        </div>
+      </div>
+
+      <div class="card dark">
+        <div class="caption" style="color:#B6AD9E">Fondo oscuro</div>
+        <div class="body">
+          <div class="lockup" style="color:#F4EFE6">
+            <svg class="mark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="44" height="44">
+              <g fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="6" y="18" width="52" height="40" rx="4"/>
+                <line x1="6" y1="30" x2="58" y2="30"/>
+                <line x1="22" y1="11" x2="42" y2="11"/>
+                <line x1="22" y1="14.5" x2="42" y2="14.5"/>
+              </g>
+            </svg>
+            <div class="text">
+              <span class="word">caja chica</span>
+              <span class="tag" style="color:#B6AD9E">Mantenedor de gastos</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ── Escala ───────────────────────────── -->
+  <section>
+    <div class="eyebrow" style="margin-bottom:16px">Prueba de escala</div>
+    <div class="card">
+      <div class="body" style="justify-content:flex-start;gap:56px;flex-wrap:wrap">
+
+        <div class="lockup" style="font-size:64px">
+          <svg class="mark" viewBox="0 0 64 64" width="64" height="64" xmlns="http://www.w3.org/2000/svg">
+            <g fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="6" y="18" width="52" height="40" rx="4"/>
+              <line x1="6" y1="30" x2="58" y2="30"/>
+              <line x1="22" y1="11" x2="42" y2="11"/>
+              <line x1="22" y1="14.5" x2="42" y2="14.5"/>
+            </g>
+          </svg>
+          <div class="text">
+            <span class="word" style="font-size:42px">caja chica</span>
+            <span class="tag" style="font-size:11px">Mantenedor de gastos</span>
+          </div>
+        </div>
+
+        <div class="lockup">
+          <svg class="mark" viewBox="0 0 64 64" width="32" height="32" xmlns="http://www.w3.org/2000/svg">
+            <g fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="6" y="18" width="52" height="40" rx="4"/>
+              <line x1="6" y1="30" x2="58" y2="30"/>
+              <line x1="22" y1="11" x2="42" y2="11"/>
+              <line x1="22" y1="14.5" x2="42" y2="14.5"/>
+            </g>
+          </svg>
+          <div class="text">
+            <span class="word" style="font-size:22px">caja chica</span>
+            <span class="tag" style="font-size:8px">Mantenedor de gastos</span>
+          </div>
+        </div>
+
+        <div class="lockup" style="gap:8px">
+          <svg class="mark" viewBox="0 0 64 64" width="20" height="20" xmlns="http://www.w3.org/2000/svg">
+            <g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="6" y="18" width="52" height="40" rx="4"/>
+              <line x1="6" y1="30" x2="58" y2="30"/>
+              <line x1="22" y1="11" x2="42" y2="11"/>
+              <line x1="22" y1="14.5" x2="42" y2="14.5"/>
+            </g>
+          </svg>
+          <span class="word" style="font-size:14px">caja chica</span>
+        </div>
+
+        <!-- favicon 32 -->
+        <div style="display:flex;flex-direction:column;align-items:center;gap:8px">
+          <div style="width:32px;height:32px;background:#F4EFE6;border:1px solid var(--line);border-radius:7px;display:flex;align-items:center;justify-content:center">
+            <svg viewBox="0 0 64 64" width="22" height="22" xmlns="http://www.w3.org/2000/svg" style="color:var(--ink)">
+              <g fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="10" y="22" width="44" height="34" rx="4"/>
+                <line x1="10" y1="32" x2="54" y2="32"/>
+                <line x1="24" y1="16" x2="40" y2="16"/>
+                <line x1="24" y1="19" x2="40" y2="19"/>
+              </g>
+            </svg>
+          </div>
+          <div class="caption" style="font-size:10px">32px</div>
+        </div>
+
+        <!-- app icon -->
+        <div style="display:flex;flex-direction:column;align-items:center;gap:8px">
+          <div style="width:96px;height:96px;background:#F4EFE6;border-radius:22px;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 20px rgba(0,0,0,0.08)">
+            <svg viewBox="0 0 64 64" width="60" height="60" xmlns="http://www.w3.org/2000/svg" style="color:var(--ink)">
+              <g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="10" y="22" width="44" height="34" rx="4"/>
+                <line x1="10" y1="32" x2="54" y2="32"/>
+                <line x1="24" y1="16" x2="40" y2="16"/>
+                <line x1="24" y1="19" x2="40" y2="19"/>
+              </g>
+            </svg>
+          </div>
+          <div class="caption" style="font-size:10px">app icon 96px</div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ── En contexto ───────────────────────────── -->
+  <section>
+    <div class="eyebrow" style="margin-bottom:16px">En contexto · header del dashboard</div>
+    <div class="mockhdr">
+      <div class="lockup" style="gap:10px">
+        <svg class="mark" viewBox="0 0 64 64" width="28" height="28" xmlns="http://www.w3.org/2000/svg">
+          <g fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="6" y="18" width="52" height="40" rx="4"/>
+            <line x1="6" y1="30" x2="58" y2="30"/>
+            <line x1="22" y1="11" x2="42" y2="11"/>
+            <line x1="22" y1="14.5" x2="42" y2="14.5"/>
+          </g>
+        </svg>
+        <span class="word" style="font-size:20px">caja chica</span>
+      </div>
+      <nav class="nav">
+        <span class="active">Dashboard</span>
+        <span>Gastos</span>
+        <span>Cuentas</span>
+        <span>Categorías</span>
+      </nav>
+      <div class="avatar">JS</div>
+    </div>
+  </section>
+
+  <!-- ── Archivos ───────────────────────────── -->
+  <section>
+    <div class="eyebrow" style="margin-bottom:4px">Archivos del pack <span style="color:var(--ink-4);font-weight:400">· logo-pack/</span></div>
+    <div class="files">
+      <div class="file">
+        <div class="name">logo.svg</div>
+        <div class="desc">Icono-solo, 64×64. Para avatars y empty states.</div>
+      </div>
+      <div class="file">
+        <div class="name">logo-lockup.svg</div>
+        <div class="desc">Icono + wordmark + tagline. Para headers y emails.</div>
+      </div>
+      <div class="file">
+        <div class="name">favicon.svg</div>
+        <div class="desc">Con fondo crema redondeado. Va en <code>/public</code>.</div>
+      </div>
+      <div class="file">
+        <div class="name">logo.tsx</div>
+        <div class="desc">Componente React con <code>size</code> y <code>showTagline</code>. Hereda currentColor.</div>
+      </div>
+      <div class="file">
+        <div class="name">README.md</div>
+        <div class="desc">Guía de integración + prompt listo para Claude Code.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Prompt ───────────────────────────── -->
+  <section>
+    <div class="eyebrow" style="margin-bottom:16px">Prompt para la terminal</div>
+<pre><span class="c"># desde la raíz del proyecto</span>
+claude
+
+<span class="k">&gt;</span> <span class="s">"Lee logo-pack/README.md y los 4 archivos del pack.
+  Implementa el logo en el proyecto:
+  1. Copia logo.tsx a src/components/Logo.tsx
+  2. Copia favicon.svg a public/favicon.svg y actualiza el &lt;head&gt;
+  3. Reemplaza el texto 'caja chica' del header del dashboard por &lt;Logo /&gt;
+  4. Verifica que Fraunces y Geist estén cargadas en globals
+  5. No modifiques lógica de data fetching ni cálculos.
+  Muéstrame los diffs antes de commitear."</span></pre>
+  </section>
+
+</div>
+</body>
+</html>

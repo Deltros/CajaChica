@@ -6,6 +6,7 @@ import ExpenseModal, { Modal } from "@/components/ExpenseModal";
 import IncomeModal from "@/components/IncomeModal";
 import BalanceAdjustModal from "@/components/BalanceAdjustModal";
 import HamburgerMenu from "@/components/HamburgerMenu";
+import { Logo } from "@/components/Logo";
 import DailyDonut from "@/components/DailyDonut";
 import StackedBudgetBar from "@/components/StackedBudgetBar";
 
@@ -121,11 +122,7 @@ export default function DashboardPage() {
         {/* ── Header bar ── */}
         <header className="dash-header" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
           <HamburgerMenu />
-          <div style={{ ...SERIF, fontSize: 28, letterSpacing: "-0.02em", display: "flex", alignItems: "baseline", gap: 6 }}>
-            <span>caja</span>
-            <span style={{ display: "inline-block", width: 7, height: 7, borderRadius: 99, background: "var(--accent)", transform: "translateY(-6px)" }} />
-            <span>chica</span>
-          </div>
+          <Logo size={34} showTagline={false} />
           <div style={{ width: 40, height: 40, borderRadius: 999, background: "var(--ink)", color: "var(--bg)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 600, fontSize: 14, flexShrink: 0 }}>
             U
           </div>

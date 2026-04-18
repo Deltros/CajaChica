@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="caja chica">
+  <g fill="none" stroke="#161410" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="6" y="18" width="52" height="40" rx="4"></rect>
+    <line x1="6" y1="30" x2="58" y2="30"></line>
+    <line x1="22" y1="11" x2="42" y2="11"></line>
+    <line x1="22" y1="14.5" x2="42" y2="14.5"></line>
+  </g>
+</svg>

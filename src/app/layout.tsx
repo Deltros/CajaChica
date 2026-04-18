@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono, Instrument_Serif } from "next/font/google";
+import { Geist, Geist_Mono, Instrument_Serif, Fraunces } from "next/font/google";
 import "./globals.css";
 
 const geist = Geist({
@@ -21,10 +21,17 @@ const instrumentSerif = Instrument_Serif({
   style: ["normal", "italic"],
 });
 
+const fraunces = Fraunces({
+  subsets: ["latin"],
+  variable: "--font-fraunces",
+  weight: ["400", "600"],
+});
+
 export const metadata: Metadata = {
-  title: "Mantenedor de Gastos",
-  description: "Gestiona tus gastos mensuales",
+  title: "caja chica",
+  description: "Mantenedor de gastos",
   manifest: "/manifest.json",
+  icons: { icon: "/favicon.svg" },
 };
 
 export const viewport: Viewport = {
@@ -37,7 +44,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html
       lang="es"
-      className={`${geist.variable} ${geistMono.variable} ${instrumentSerif.variable}`}
+      className={`${geist.variable} ${geistMono.variable} ${instrumentSerif.variable} ${fraunces.variable}`}
     >
       <body>{children}</body>
     </html>
