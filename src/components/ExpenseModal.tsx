@@ -2,16 +2,20 @@
 
 import { useState } from "react";
 
+type Account = { id: string; name: string };
+
 type Props = {
   periodId: string;
+  accounts: Account[];
   onClose: () => void;
   onSaved: () => void;
 };
 
-export default function ExpenseModal({ periodId, onClose, onSaved }: Props) {
+export default function ExpenseModal({ periodId, accounts, onClose, onSaved }: Props) {
   const [description, setDescription] = useState("");
   const [amount, setAmount] = useState("");
   const [type, setType] = useState<"FIXED" | "VARIABLE" | "SAVING">("VARIABLE");
+  const [accountId, setAccountId] = useState<string>("");
   const [isInstallment, setIsInstallment] = useState(false);
   const [totalInstallments, setTotalInstallments] = useState("2");
   const [startThisMonth, setStartThisMonth] = useState(true);
@@ -47,7 +51,7 @@ export default function ExpenseModal({ periodId, onClose, onSaved }: Props) {
       res = await fetch("/api/expenses", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ periodId, description, amount: amountNum, type }),
+        body: JSON.stringify({ periodId, description, amount: amountNum, type, accountId: accountId || undefined }),
       });
     }
 
@@ -114,6 +118,23 @@ export default function ExpenseModal({ periodId, onClose, onSaved }: Props) {
             min={1}
           />
         </div>
+
+        {/* Cuenta (opcional) */}
+        {!isInstallment && accounts.length > 0 && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Cuenta <span className="text-gray-400 font-normal">(opcional)</span></label>
+            <select
+              value={accountId}
+              onChange={(e) => setAccountId(e.target.value)}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+            >
+              <option value="">Sin cuenta</option>
+              {accounts.map((a) => (
+                <option key={a.id} value={a.id}>{a.name}</option>
+              ))}
+            </select>
+          </div>
+        )}
 
         {/* Toggle cuotas */}
         <label className="flex items-center gap-3 cursor-pointer select-none">

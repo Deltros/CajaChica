@@ -8,7 +8,7 @@ import IncomeModal from "@/components/IncomeModal";
 
 type Account = { id: string; name: string; type: string };
 type Income = { id: string; accountId: string; amount: number; label: string | null; account: Account };
-type Expense = { id: string; description: string; amount: number; type: string; date: string };
+type Expense = { id: string; description: string; amount: number; type: string; date: string; accountId: string | null };
 type PeriodInstallment = { id: string; planId: string; amount: number; isPaid: boolean; plan: { name: string; totalInstallments: number; paidInstallments: number; totalAmount: number; startYear: number; startMonth: number } };
 type Period = { id: string; incomes: Income[]; expenses: Expense[]; installments: PeriodInstallment[] };
 
@@ -24,6 +24,7 @@ export default function DashboardPage() {
   const [showExpenseModal, setShowExpenseModal] = useState(false);
   const [showIncomeModal, setShowIncomeModal] = useState(false);
   const [selectedInstallment, setSelectedInstallment] = useState<PeriodInstallment | null>(null);
+  const [confirmDeleteInstallment, setConfirmDeleteInstallment] = useState(false);
 
   const fetchPeriod = useCallback(async () => {
     setLoading(true);
@@ -41,6 +42,13 @@ export default function DashboardPage() {
 
   async function deleteExpense(id: string) {
     await fetch(`/api/expenses?id=${id}`, { method: "DELETE" });
+    fetchPeriod();
+  }
+
+  async function deleteInstallmentPlan(planId: string) {
+    await fetch(`/api/installments?id=${planId}`, { method: "DELETE" });
+    setSelectedInstallment(null);
+    setConfirmDeleteInstallment(false);
     fetchPeriod();
   }
 
@@ -139,6 +147,31 @@ export default function DashboardPage() {
                 </ul>
               )}
             </section>
+
+            {/* Saldo en cuentas */}
+            {accounts.length > 0 && (
+              <section className="bg-white rounded-xl shadow-sm overflow-hidden">
+                <div className="px-4 py-3 border-b border-gray-100">
+                  <h2 className="font-semibold text-gray-700 text-sm">Saldo en cuentas</h2>
+                  <p className="text-xs text-gray-400 mt-0.5">Actualiza el monto real cuando revises tus cuentas</p>
+                </div>
+                <ul className="divide-y divide-gray-50">
+                  {accounts.map((account) => {
+                    const income = period?.incomes.filter((i) => i.accountId === account.id).reduce((s, i) => s + i.amount, 0) ?? 0;
+                    const spent = period?.expenses.filter((e) => e.accountId === account.id).reduce((s, e) => s + e.amount, 0) ?? 0;
+                    const balance = income - spent;
+                    return (
+                      <li key={account.id} className="flex items-center justify-between px-4 py-3">
+                        <p className="text-sm font-medium text-gray-800">{account.name}</p>
+                        <span className={`text-sm font-semibold ${balance >= 0 ? "text-blue-700" : "text-red-600"}`}>
+                          {formatCLP(balance)}
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </section>
+            )}
 
             {/* Detalle de gastos */}
             <section className="bg-white rounded-xl shadow-sm overflow-hidden">
@@ -273,6 +306,7 @@ export default function DashboardPage() {
       {showExpenseModal && period && (
         <ExpenseModal
           periodId={period.id}
+          accounts={accounts}
           onClose={() => setShowExpenseModal(false)}
           onSaved={fetchPeriod}
         />
@@ -287,7 +321,7 @@ export default function DashboardPage() {
       )}
 
       {selectedInstallment && (
-        <Modal title={selectedInstallment.plan.name} onClose={() => setSelectedInstallment(null)}>
+        <Modal title={selectedInstallment.plan.name} onClose={() => { setSelectedInstallment(null); setConfirmDeleteInstallment(false); }}>
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
               <div className="bg-red-50 rounded-xl p-3">
@@ -325,12 +359,40 @@ export default function DashboardPage() {
                 />
               ))}
             </div>
-            <button
-              onClick={() => setSelectedInstallment(null)}
-              className="w-full py-2.5 border border-gray-200 rounded-xl text-sm text-gray-600 hover:bg-gray-50"
-            >
-              Cerrar
-            </button>
+            {confirmDeleteInstallment ? (
+              <div className="space-y-2">
+                <p className="text-sm text-center text-gray-600">¿Eliminar este plan de cuotas?</p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setConfirmDeleteInstallment(false)}
+                    className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-600 hover:bg-gray-50"
+                  >
+                    No
+                  </button>
+                  <button
+                    onClick={() => deleteInstallmentPlan(selectedInstallment.planId)}
+                    className="flex-1 py-2.5 bg-red-500 text-white rounded-xl text-sm font-medium hover:bg-red-600"
+                  >
+                    Sí, eliminar
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setConfirmDeleteInstallment(true)}
+                  className="flex-1 py-2.5 border border-red-200 text-red-500 rounded-xl text-sm hover:bg-red-50"
+                >
+                  Eliminar plan
+                </button>
+                <button
+                  onClick={() => setSelectedInstallment(null)}
+                  className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-600 hover:bg-gray-50"
+                >
+                  Cerrar
+                </button>
+              </div>
+            )}
           </div>
         </Modal>
       )}

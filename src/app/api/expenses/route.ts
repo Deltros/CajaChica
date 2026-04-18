@@ -9,6 +9,7 @@ const expenseSchema = z.object({
   amount: z.number().positive(),
   type: z.enum(["FIXED", "VARIABLE", "SAVING"]).default("VARIABLE"),
   date: z.string().optional(),
+  accountId: z.string().optional(),
 });
 
 export async function POST(req: Request) {
@@ -24,17 +25,26 @@ export async function POST(req: Request) {
   });
   if (!period) return NextResponse.json({ error: "Período no encontrado" }, { status: 404 });
 
-  const expense = await prisma.expense.create({
-    data: {
-      periodId: parsed.data.periodId,
-      description: parsed.data.description,
-      amount: parsed.data.amount,
-      type: parsed.data.type,
-      date: parsed.data.date ? new Date(parsed.data.date) : new Date(),
-    },
-  });
+  const { periodId, description, amount, type, date, accountId } = parsed.data;
 
-  return NextResponse.json(expense, { status: 201 });
+  try {
+    const expense = await prisma.expense.create({
+      data: {
+        periodId,
+        description,
+        amount,
+        type,
+        date: date ? new Date(date) : new Date(),
+        accountId: accountId ?? null,
+      },
+    });
+
+
+    return NextResponse.json(expense, { status: 201 });
+  } catch (err) {
+    console.error(err);
+    return NextResponse.json({ error: "Error al guardar el gasto" }, { status: 500 });
+  }
 }
 
 export async function DELETE(req: Request) {
@@ -51,5 +61,7 @@ export async function DELETE(req: Request) {
   if (!expense) return NextResponse.json({ error: "No encontrado" }, { status: 404 });
 
   await prisma.expense.delete({ where: { id } });
+
+
   return NextResponse.json({ ok: true });
 }

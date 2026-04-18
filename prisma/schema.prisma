@@ -21,14 +21,15 @@ model User {
 
 // Cuentas bancarias / efectivo del usuario
 model Account {
-  id        String      @id @default(cuid())
-  userId    String
-  name      String
-  type      AccountType @default(BANK)
-  createdAt DateTime    @default(now())
+  id             String      @id @default(cuid())
+  userId         String
+  name           String
+  type           AccountType @default(BANK)
+  createdAt      DateTime    @default(now())
 
-  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  incomes Income[]
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  incomes  Income[]
+  expenses Expense[]
 }
 
 enum AccountType {
@@ -68,13 +69,15 @@ model Income {
 model Expense {
   id          String      @id @default(cuid())
   periodId    String
+  accountId   String?
   description String
   amount      Int
   type        ExpenseType @default(VARIABLE)
   date        DateTime    @default(now())
   createdAt   DateTime    @default(now())
 
-  period MonthlyPeriod @relation(fields: [periodId], references: [id], onDelete: Cascade)
+  period  MonthlyPeriod @relation(fields: [periodId], references: [id], onDelete: Cascade)
+  account Account?      @relation(fields: [accountId], references: [id], onDelete: SetNull)
 }
 
 enum ExpenseType {

@@ -38,7 +38,7 @@ async function propagateInstallments(userId: string, periodId: string, year: num
 
 const periodInclude = {
   incomes: { include: { account: true } },
-  expenses: { orderBy: { date: "asc" as const } },
+  expenses: { orderBy: { date: "asc" as const }, select: { id: true, description: true, amount: true, type: true, date: true, accountId: true } },
   installments: { include: { plan: true } },
 };
 

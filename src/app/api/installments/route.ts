@@ -70,3 +70,20 @@ export async function POST(req: Request) {
 
   return NextResponse.json(plan, { status: 201 });
 }
+
+export async function DELETE(req: Request) {
+  const session = await auth();
+  if (!session?.user?.id) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+
+  const { searchParams } = new URL(req.url);
+  const id = searchParams.get("id");
+  if (!id) return NextResponse.json({ error: "ID requerido" }, { status: 400 });
+
+  const plan = await prisma.installmentPlan.findFirst({
+    where: { id, userId: session.user.id },
+  });
+  if (!plan) return NextResponse.json({ error: "No encontrado" }, { status: 404 });
+
+  await prisma.installmentPlan.delete({ where: { id } });
+  return NextResponse.json({ ok: true });
+}
