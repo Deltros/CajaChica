@@ -14,6 +14,34 @@ type Period = { id: string; incomes: Income[]; expenses: Expense[]; installments
 
 const MONTHS = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 
+function IncomeList({ items, onDelete }: { items: { id: string; amount: number; label: string | null; account: { name: string } }[]; onDelete: (id: string) => void }) {
+  const [confirmId, setConfirmId] = useState<string | null>(null);
+  return (
+    <ul className="divide-y divide-gray-50 border-t border-gray-100">
+      {items.map((i) => (
+        <li key={i.id} className="group flex items-center justify-between px-4 py-3">
+          <div>
+            <p className="text-sm font-medium text-gray-800">{i.account.name}</p>
+            {i.label && <p className="text-xs text-gray-400">{i.label}</p>}
+          </div>
+          {confirmId === i.id ? (
+            <div className="flex items-center gap-2 shrink-0">
+              <span className="text-xs text-gray-500">¿Eliminar?</span>
+              <button onClick={() => setConfirmId(null)} className="text-xs px-2 py-1 rounded-md bg-gray-100 text-gray-600 hover:bg-gray-200">No</button>
+              <button onClick={() => { setConfirmId(null); onDelete(i.id); }} className="text-xs px-2 py-1 rounded-md bg-red-500 text-white hover:bg-red-600">Sí</button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-3">
+              <span className="text-sm font-semibold text-green-600">{formatCLP(i.amount)}</span>
+              <button onClick={() => setConfirmId(i.id)} className="opacity-0 group-hover:opacity-100 w-6 h-6 flex items-center justify-center rounded-full text-gray-300 hover:bg-red-50 hover:text-red-400 transition-all text-xs">✕</button>
+            </div>
+          )}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 export default function DashboardPage() {
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
@@ -579,30 +607,3 @@ function ExpenseList({
   );
 }
 
-function IncomeList({ items, onDelete }: { items: { id: string; amount: number; label: string | null; account: { name: string } }[]; onDelete: (id: string) => void }) {
-  const [confirmId, setConfirmId] = useState<string | null>(null);
-  return (
-    <ul className="divide-y divide-gray-50 border-t border-gray-100">
-      {items.map((i) => (
-        <li key={i.id} className="group flex items-center justify-between px-4 py-3">
-          <div>
-            <p className="text-sm font-medium text-gray-800">{i.account.name}</p>
-            {i.label && <p className="text-xs text-gray-400">{i.label}</p>}
-          </div>
-          {confirmId === i.id ? (
-            <div className="flex items-center gap-2 shrink-0">
-              <span className="text-xs text-gray-500">¿Eliminar?</span>
-              <button onClick={() => setConfirmId(null)} className="text-xs px-2 py-1 rounded-md bg-gray-100 text-gray-600 hover:bg-gray-200">No</button>
-              <button onClick={() => { setConfirmId(null); onDelete(i.id); }} className="text-xs px-2 py-1 rounded-md bg-red-500 text-white hover:bg-red-600">Sí</button>
-            </div>
-          ) : (
-            <div className="flex items-center gap-3">
-              <span className="text-sm font-semibold text-green-600">{formatCLP(i.amount)}</span>
-              <button onClick={() => setConfirmId(i.id)} className="opacity-0 group-hover:opacity-100 w-6 h-6 flex items-center justify-center rounded-full text-gray-300 hover:bg-red-50 hover:text-red-400 transition-all text-xs">✕</button>
-            </div>
-          )}
-        </li>
-      ))}
-    </ul>
-  );
-}
