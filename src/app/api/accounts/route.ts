@@ -34,3 +34,23 @@ export async function POST(req: Request) {
 
   return NextResponse.json(account, { status: 201 });
 }
+
+export async function PATCH(req: Request) {
+  const session = await auth();
+  if (!session?.user?.id) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+
+  const body = await req.json();
+  const parsed = z.object({
+    id: z.string(),
+    name: z.string().min(1).optional(),
+    isActive: z.boolean().optional(),
+  }).safeParse(body);
+  if (!parsed.success) return NextResponse.json({ error: "Datos inválidos" }, { status: 400 });
+
+  const { id, ...data } = parsed.data;
+  const account = await prisma.account.findFirst({ where: { id, userId: session.user.id } });
+  if (!account) return NextResponse.json({ error: "No encontrado" }, { status: 404 });
+
+  const updated = await prisma.account.update({ where: { id }, data });
+  return NextResponse.json(updated);
+}

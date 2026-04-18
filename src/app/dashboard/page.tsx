@@ -1,12 +1,12 @@
 "use client";
 
 import { useEffect, useState, useCallback, type ReactNode } from "react";
-import { signOut } from "next-auth/react";
 import { formatCLP, daysLeftInMonth } from "@/lib/format";
 import ExpenseModal, { Modal } from "@/components/ExpenseModal";
 import IncomeModal from "@/components/IncomeModal";
+import HamburgerMenu from "@/components/HamburgerMenu";
 
-type Account = { id: string; name: string; type: string };
+type Account = { id: string; name: string; type: string; isActive: boolean };
 type Income = { id: string; accountId: string; amount: number; label: string | null; account: Account };
 type Expense = { id: string; description: string; amount: number; type: string; date: string; accountId: string | null };
 type PeriodInstallment = { id: string; planId: string; amount: number; isPaid: boolean; plan: { name: string; totalInstallments: number; paidInstallments: number; totalAmount: number; startYear: number; startMonth: number; accountId: string | null } };
@@ -85,6 +85,7 @@ export default function DashboardPage() {
     fetchPeriod();
   }
 
+  const activeAccounts = accounts.filter((a) => a.isActive);
   const totalIncome = period?.incomes.reduce((s, i) => s + i.amount, 0) ?? 0;
   const fixedExpenses = period?.expenses.filter((e) => e.type === "FIXED") ?? [];
   const savings = period?.expenses.filter((e) => e.type === "SAVING") ?? [];
@@ -109,11 +110,9 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <header className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between">
-        <h1 className="text-lg font-semibold text-gray-800">Mantenedor de Gastos</h1>
-        <button onClick={() => signOut({ callbackUrl: "/login" })} className="text-sm text-gray-500 hover:text-gray-700">
-          Cerrar sesión
-        </button>
+      <header className="bg-white border-b border-gray-200 px-4 py-3 flex items-center gap-3">
+        <HamburgerMenu />
+        <h1 className="text-lg font-semibold text-gray-800">Inicio</h1>
       </header>
 
       <div className="max-w-2xl mx-auto px-4 py-6 space-y-4">
@@ -177,14 +176,14 @@ export default function DashboardPage() {
             </section>
 
             {/* Saldo en cuentas */}
-            {accounts.length > 0 && (
+            {activeAccounts.length > 0 && (
               <section className="bg-white rounded-xl shadow-sm overflow-hidden">
                 <div className="px-4 py-3 border-b border-gray-100">
                   <h2 className="font-semibold text-gray-700 text-sm">Saldo en cuentas</h2>
                   <p className="text-xs text-gray-400 mt-0.5">Actualiza el monto real cuando revises tus cuentas</p>
                 </div>
                 <ul className="divide-y divide-gray-50">
-                  {accounts.map((account) => {
+                  {activeAccounts.map((account) => {
                     const income = period?.incomes.filter((i) => i.accountId === account.id).reduce((s, i) => s + i.amount, 0) ?? 0;
                     const spent = period?.expenses.filter((e) => e.accountId === account.id).reduce((s, e) => s + e.amount, 0) ?? 0;
                     const installmentSpent = period?.installments.filter((i) => !i.isPaid && i.plan.accountId === account.id).reduce((s, i) => s + i.amount, 0) ?? 0;
@@ -339,7 +338,7 @@ export default function DashboardPage() {
       {showExpenseModal && period && (
         <ExpenseModal
           periodId={period.id}
-          accounts={accounts}
+          accounts={activeAccounts}
           onClose={() => setShowExpenseModal(false)}
           onSaved={fetchPeriod}
         />
@@ -347,7 +346,7 @@ export default function DashboardPage() {
       {showIncomeModal && period && (
         <IncomeModal
           periodId={period.id}
-          accounts={accounts}
+          accounts={activeAccounts}
           onClose={() => setShowIncomeModal(false)}
           onSaved={fetchPeriod}
         />
