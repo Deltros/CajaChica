@@ -1,0 +1,115 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  name      String?
+  createdAt DateTime @default(now())
+
+  accounts     Account[]
+  periods      MonthlyPeriod[]
+  installments InstallmentPlan[]
+}
+
+// Cuentas bancarias / efectivo del usuario
+model Account {
+  id        String      @id @default(cuid())
+  userId    String
+  name      String
+  type      AccountType @default(BANK)
+  createdAt DateTime    @default(now())
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  incomes Income[]
+}
+
+enum AccountType {
+  BANK
+  CASH
+}
+
+// Período mensual (ej: Abril 2026)
+model MonthlyPeriod {
+  id        String   @id @default(cuid())
+  userId    String
+  year      Int
+  month     Int
+  createdAt DateTime @default(now())
+
+  user         User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  incomes      Income[]
+  expenses     Expense[]
+  installments PeriodInstallment[]
+
+  @@unique([userId, year, month])
+}
+
+// Ingresos del período
+model Income {
+  id        String  @id @default(cuid())
+  periodId  String
+  accountId String
+  amount    Int
+  label     String?
+
+  period  MonthlyPeriod @relation(fields: [periodId], references: [id], onDelete: Cascade)
+  account Account       @relation(fields: [accountId], references: [id], onDelete: Cascade)
+}
+
+// Gastos del período
+model Expense {
+  id          String      @id @default(cuid())
+  periodId    String
+  description String
+  amount      Int
+  type        ExpenseType @default(VARIABLE)
+  date        DateTime    @default(now())
+  createdAt   DateTime    @default(now())
+
+  period MonthlyPeriod @relation(fields: [periodId], references: [id], onDelete: Cascade)
+}
+
+enum ExpenseType {
+  FIXED
+  VARIABLE
+  SAVING
+}
+
+// Plan de cuotas (ej: bicicleta $120k en 3 cuotas)
+model InstallmentPlan {
+  id                String   @id @default(cuid())
+  userId            String
+  name              String
+  totalAmount       Int
+  installmentAmount Int
+  totalInstallments Int
+  paidInstallments  Int      @default(0)
+  startYear         Int
+  startMonth        Int
+  createdAt         DateTime @default(now())
+
+  user        User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  periodItems PeriodInstallment[]
+}
+
+// Cuota de un plan asociada a un período mensual
+model PeriodInstallment {
+  id       String  @id @default(cuid())
+  periodId String
+  planId   String
+  amount   Int
+  isPaid   Boolean @default(false)
+
+  period MonthlyPeriod   @relation(fields: [periodId], references: [id], onDelete: Cascade)
+  plan   InstallmentPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  @@unique([periodId, planId])
+}
