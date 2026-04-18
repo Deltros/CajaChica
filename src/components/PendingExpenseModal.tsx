@@ -3,6 +3,9 @@
 import { useState } from "react";
 import { Modal } from "./ExpenseModal";
 import { formatCLP } from "@/lib/format";
+import CategoryPicker from "./CategoryPicker";
+
+type Account = { id: string; name: string };
 
 type Expense = {
   id: string;
@@ -14,6 +17,7 @@ type Expense = {
 
 type Props = {
   expense: Expense;
+  accounts: Account[];
   onClose: () => void;
   onSaved: () => void;
 };
@@ -29,18 +33,33 @@ const FIELD_INPUT: React.CSSProperties = {
   padding: "12px 14px", outline: "none", boxSizing: "border-box",
 };
 
-export default function PendingExpenseModal({ expense, onClose, onSaved }: Props) {
+export default function PendingExpenseModal({ expense, accounts, onClose, onSaved }: Props) {
   const [description, setDescription] = useState(expense.description);
   const [amount, setAmount] = useState(String(expense.amount));
+  const [accountId, setAccountId] = useState(expense.accountId ?? "");
+  const [selectedCategories, setSelectedCategories] = useState<string[]>(
+    expense.categories.map((c) => c.category.id)
+  );
   const [loading, setLoading] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+
+  function buildBody(extraFields?: Record<string, unknown>) {
+    return {
+      id: expense.id,
+      description,
+      amount: parseInt(amount || "0"),
+      accountId: accountId || null,
+      categoryIds: selectedCategories,
+      ...extraFields,
+    };
+  }
 
   async function handleSave() {
     setLoading(true);
     await fetch("/api/expenses", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: expense.id, description, amount: parseInt(amount || "0") }),
+      body: JSON.stringify(buildBody()),
     });
     setLoading(false);
     onSaved();
@@ -52,7 +71,7 @@ export default function PendingExpenseModal({ expense, onClose, onSaved }: Props
     await fetch("/api/expenses", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: expense.id, type: "VARIABLE", description, amount: parseInt(amount || "0") }),
+      body: JSON.stringify(buildBody({ type: "VARIABLE" })),
     });
     setLoading(false);
     onSaved();
@@ -69,7 +88,7 @@ export default function PendingExpenseModal({ expense, onClose, onSaved }: Props
 
   return (
     <Modal title={expense.description} eyebrow="Gasto pendiente" onClose={onClose}>
-      {/* Preview chip */}
+      {/* Chip monto actual */}
       <div style={{
         display: "inline-flex", alignItems: "center", gap: 6,
         background: "var(--pending-soft)", color: "var(--pending)",
@@ -92,7 +111,7 @@ export default function PendingExpenseModal({ expense, onClose, onSaved }: Props
       </div>
 
       {/* Monto */}
-      <div style={{ marginBottom: 20 }}>
+      <div style={{ marginBottom: 14 }}>
         <label style={FIELD_LABEL}>Monto · CLP</label>
         <input
           type="number"
@@ -106,6 +125,35 @@ export default function PendingExpenseModal({ expense, onClose, onSaved }: Props
             fontVariantNumeric: "tabular-nums",
           }}
         />
+      </div>
+
+      {/* Cuenta */}
+      {accounts.length > 0 && (
+        <div style={{ marginBottom: 14 }}>
+          <label style={FIELD_LABEL}>
+            Cuenta{" "}
+            <span style={{ textTransform: "none", letterSpacing: 0, color: "var(--ink-4)", fontSize: 11 }}>opcional</span>
+          </label>
+          <select
+            value={accountId}
+            onChange={(e) => setAccountId(e.target.value)}
+            style={{ ...FIELD_INPUT, appearance: "auto" }}
+          >
+            <option value="">Sin cuenta</option>
+            {accounts.map((a) => (
+              <option key={a.id} value={a.id}>{a.name}</option>
+            ))}
+          </select>
+        </div>
+      )}
+
+      {/* Categorías */}
+      <div style={{ marginBottom: 20 }}>
+        <label style={FIELD_LABEL}>
+          Categorías{" "}
+          <span style={{ textTransform: "none", letterSpacing: 0, color: "var(--ink-4)", fontSize: 11 }}>opcional · múltiples</span>
+        </label>
+        <CategoryPicker selected={selectedCategories} onChange={setSelectedCategories} />
       </div>
 
       {/* Pasar a gasto normal */}

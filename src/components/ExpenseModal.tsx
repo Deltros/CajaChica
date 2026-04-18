@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import CategoryPicker from "./CategoryPicker";
 
 type Account = { id: string; name: string };
 
@@ -33,17 +34,12 @@ export default function ExpenseModal({ periodId, accounts, defaultAccountId, onC
   const [amount, setAmount] = useState("");
   const [type, setType] = useState<"FIXED" | "VARIABLE" | "SAVING" | "PENDING">("VARIABLE");
   const [accountId, setAccountId] = useState<string>(defaultAccountId ?? "");
-  const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [isInstallment, setIsInstallment] = useState(false);
   const [totalInstallments, setTotalInstallments] = useState("2");
   const [startThisMonth, setStartThisMonth] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-
-  useEffect(() => {
-    fetch("/api/categories").then((r) => r.json()).then(setCategories).catch(() => {});
-  }, []);
 
   const amountNum = parseInt(amount || "0");
   const installmentsNum = parseInt(totalInstallments || "1");
@@ -228,37 +224,13 @@ export default function ExpenseModal({ periodId, accounts, defaultAccountId, onC
         )}
 
         {/* Categorías */}
-        {!isInstallment && categories.length > 0 && (
+        {!isInstallment && (
           <div style={{ marginBottom: 14 }}>
             <label style={FIELD_LABEL}>
               Categorías{" "}
               <span style={{ textTransform: "none", letterSpacing: 0, color: "var(--ink-4)", fontSize: 11 }}>opcional · múltiples</span>
             </label>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-              {categories.map((cat) => {
-                const sel = selectedCategories.includes(cat.id);
-                return (
-                  <button
-                    key={cat.id}
-                    type="button"
-                    onClick={() =>
-                      setSelectedCategories((prev) =>
-                        sel ? prev.filter((id) => id !== cat.id) : [...prev, cat.id]
-                      )
-                    }
-                    style={{
-                      fontFamily: "inherit", fontSize: 12.5,
-                      background: sel ? "var(--accent)" : "var(--bg-soft)",
-                      color: sel ? "var(--bg)" : "var(--ink-2)",
-                      border: sel ? "1px solid var(--accent)" : "1px solid var(--line)",
-                      borderRadius: 99, padding: "7px 14px", cursor: "pointer",
-                    }}
-                  >
-                    {cat.name}
-                  </button>
-                );
-              })}
-            </div>
+            <CategoryPicker selected={selectedCategories} onChange={setSelectedCategories} />
           </div>
         )}
 

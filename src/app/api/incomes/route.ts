@@ -8,6 +8,7 @@ const incomeSchema = z.object({
   accountId: z.string(),
   amount: z.number().positive(),
   label: z.string().optional(),
+  categoryIds: z.array(z.string()).optional(),
 });
 
 export async function POST(req: Request) {
@@ -23,7 +24,15 @@ export async function POST(req: Request) {
   });
   if (!period) return NextResponse.json({ error: "Período no encontrado" }, { status: 404 });
 
-  const income = await prisma.income.create({ data: parsed.data });
+  const { categoryIds, ...incomeData } = parsed.data;
+  const income = await prisma.income.create({
+    data: {
+      ...incomeData,
+      categories: categoryIds?.length
+        ? { create: categoryIds.map((categoryId) => ({ categoryId })) }
+        : undefined,
+    },
+  });
   return NextResponse.json(income, { status: 201 });
 }
 

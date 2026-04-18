@@ -12,7 +12,7 @@ import StackedBudgetBar from "@/components/StackedBudgetBar";
 import PendingExpenseModal from "@/components/PendingExpenseModal";
 
 type Account = { id: string; name: string; type: string; isActive: boolean; isDefault: boolean };
-type Income = { id: string; accountId: string; amount: number; label: string | null; account: Account };
+type Income = { id: string; accountId: string; amount: number; label: string | null; account: Account; categories: { category: { id: string; name: string } }[] };
 type Expense = { id: string; description: string; amount: number; type: string; date: string; accountId: string | null; account: { name: string } | null; categories: { category: { id: string; name: string } }[] };
 type PeriodInstallment = { id: string; planId: string; amount: number; isPaid: boolean; plan: { name: string; totalInstallments: number; paidInstallments: number; totalAmount: number; startYear: number; startMonth: number; accountId: string | null } };
 type Period = { id: string; incomes: Income[]; expenses: Expense[]; installments: PeriodInstallment[] };
@@ -263,18 +263,24 @@ export default function DashboardPage() {
                       <span style={{ color: "var(--accent)" }}>{formatCLP(totalPositive)}</span>
                       <span>·</span>
                       <span style={{ color: "var(--danger)" }}>{totalNegative < 0 ? neg(totalNegative) : formatCLP(0)}</span>
-                      {accountBalances.some((b) => b.pendingSpent > 0) && (
-                        <>
-                          <span>·</span>
-                          <span style={{ color: "var(--pending)" }}>
-                            ({neg(totalNegative - accountBalances.reduce((s, b) => s + b.pendingSpent, 0))} c/ pend.)
-                          </span>
-                        </>
-                      )}
                     </div>
                   </div>
                   {showSaldo && (
                     <div style={{ borderTop: "1px solid var(--line-soft)" }}>
+                      {accountBalances.some((b) => b.pendingSpent > 0) && (
+                        <div style={{
+                          padding: "8px 18px", borderBottom: "1px solid var(--line-soft)",
+                          display: "flex", justifyContent: "space-between", alignItems: "center",
+                          background: "var(--pending-soft)",
+                        }}>
+                          <span style={{ fontSize: 11, color: "var(--pending)", fontWeight: 500, letterSpacing: "0.1em", textTransform: "uppercase" }}>
+                            Con pendientes
+                          </span>
+                          <span style={{ ...MONO, fontSize: 12, color: "var(--pending)", fontWeight: 500 }}>
+                            {neg(totalNegative - accountBalances.reduce((s, b) => s + b.pendingSpent, 0))} negativo
+                          </span>
+                        </div>
+                      )}
                       <ul style={{ margin: 0, padding: 0, listStyle: "none" }}>
                         {accountBalances.map(({ account, balance, pendingSpent }, idx) => (
                           <li
@@ -476,6 +482,7 @@ export default function DashboardPage() {
       {selectedPending && (
         <PendingExpenseModal
           expense={selectedPending}
+          accounts={activeAccounts}
           onClose={() => setSelectedPending(null)}
           onSaved={fetchPeriod}
         />
@@ -661,6 +668,15 @@ function IncomeList({ items, onDelete }: { items: Income[]; onDelete: (id: strin
             <span style={{ color: "var(--ink)" }}>
               {i.account.name}
               {i.label && <span style={{ color: "var(--ink-3)", marginLeft: 6, fontSize: 12 }}>{i.label}</span>}
+              {i.categories?.length > 0 && (
+                <span style={{ display: "inline-flex", gap: 4, marginLeft: 6, flexWrap: "wrap" }}>
+                  {i.categories.map(({ category: c }) => (
+                    <span key={c.id} style={{ fontSize: 10, padding: "2px 7px", borderRadius: 99, background: "var(--bg-soft)", color: "var(--ink-3)", border: "1px solid var(--line)", letterSpacing: "0.02em" }}>
+                      {c.name}
+                    </span>
+                  ))}
+                </span>
+              )}
             </span>
           </span>
 

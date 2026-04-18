@@ -65,8 +65,19 @@ model Income {
   amount    Int
   label     String?
 
-  period  MonthlyPeriod @relation(fields: [periodId], references: [id], onDelete: Cascade)
-  account Account       @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  period     MonthlyPeriod   @relation(fields: [periodId], references: [id], onDelete: Cascade)
+  account    Account         @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  categories IncomeCategory[]
+}
+
+model IncomeCategory {
+  incomeId   String
+  categoryId String
+
+  income   Income   @relation(fields: [incomeId], references: [id], onDelete: Cascade)
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@id([incomeId, categoryId])
 }
 
 // Gastos del período
@@ -120,6 +131,7 @@ model Category {
 
   user     User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   expenses ExpenseCategory[]
+  incomes  IncomeCategory[]
 
   @@unique([userId, name])
 }

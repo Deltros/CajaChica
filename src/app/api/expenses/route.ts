@@ -73,7 +73,7 @@ export async function PATCH(req: Request) {
   if (!session?.user?.id) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
   const body = await req.json();
-  const { id, amount, description, type } = body;
+  const { id, amount, description, type, accountId, categoryIds } = body;
   if (!id) return NextResponse.json({ error: "ID requerido" }, { status: 400 });
 
   const expense = await prisma.expense.findFirst({
@@ -87,7 +87,18 @@ export async function PATCH(req: Request) {
       ...(amount !== undefined && { amount: parseInt(String(amount)) }),
       ...(description !== undefined && { description }),
       ...(type !== undefined && { type }),
+      ...(accountId !== undefined && { accountId: accountId || null }),
     },
   });
+
+  if (categoryIds !== undefined) {
+    await prisma.expenseCategory.deleteMany({ where: { expenseId: id } });
+    if (categoryIds.length > 0) {
+      await prisma.expenseCategory.createMany({
+        data: categoryIds.map((categoryId: string) => ({ expenseId: id, categoryId })),
+      });
+    }
+  }
+
   return NextResponse.json(updated);
 }

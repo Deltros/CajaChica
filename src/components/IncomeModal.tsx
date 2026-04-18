@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Modal } from "./ExpenseModal";
+import CategoryPicker from "./CategoryPicker";
 
 type Account = { id: string; name: string; type: string };
 
@@ -30,6 +31,7 @@ export default function IncomeModal({ periodId, accounts, onClose, onSaved }: Pr
   const [newAccountName, setNewAccountName] = useState("");
   const [newAccountType, setNewAccountType] = useState<"BANK" | "CASH">("BANK");
   const [showNewAccount, setShowNewAccount] = useState(false);
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -63,6 +65,7 @@ export default function IncomeModal({ periodId, accounts, onClose, onSaved }: Pr
         accountId,
         amount: parseInt(amount),
         label: label || undefined,
+        categoryIds: selectedCategories.length > 0 ? selectedCategories : undefined,
       }),
     });
 
@@ -186,6 +189,15 @@ export default function IncomeModal({ periodId, accounts, onClose, onSaved }: Pr
             placeholder="ej: Sueldo, sobra mes anterior"
             style={FIELD_INPUT}
           />
+        </div>
+
+        {/* Categorías */}
+        <div style={{ marginBottom: 14 }}>
+          <label style={FIELD_LABEL}>
+            Categorías{" "}
+            <span style={{ textTransform: "none", letterSpacing: 0, color: "var(--ink-4)", fontSize: 11 }}>opcional · múltiples</span>
+          </label>
+          <CategoryPicker selected={selectedCategories} onChange={setSelectedCategories} />
         </div>
 
         {error && (
