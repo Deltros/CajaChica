@@ -45,6 +45,7 @@ export default function ExpenseModal({ periodId, accounts, onClose, onSaved }: P
           installmentAmount: perInstallment,
           totalInstallments: installmentsNum,
           startThisMonth,
+          accountId: accountId || undefined,
         }),
       });
     } else {
@@ -120,7 +121,7 @@ export default function ExpenseModal({ periodId, accounts, onClose, onSaved }: P
         </div>
 
         {/* Cuenta (opcional) */}
-        {!isInstallment && accounts.length > 0 && (
+        {accounts.length > 0 && (
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Cuenta <span className="text-gray-400 font-normal">(opcional)</span></label>
             <select

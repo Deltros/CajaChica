@@ -27,9 +27,10 @@ model Account {
   type           AccountType @default(BANK)
   createdAt      DateTime    @default(now())
 
-  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  incomes  Income[]
-  expenses Expense[]
+  user         User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  incomes      Income[]
+  expenses     Expense[]
+  installments InstallmentPlan[]
 }
 
 enum AccountType {
@@ -90,6 +91,7 @@ enum ExpenseType {
 model InstallmentPlan {
   id                String   @id @default(cuid())
   userId            String
+  accountId         String?
   name              String
   totalAmount       Int
   installmentAmount Int
@@ -100,6 +102,7 @@ model InstallmentPlan {
   createdAt         DateTime @default(now())
 
   user        User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  account     Account?            @relation(fields: [accountId], references: [id], onDelete: SetNull)
   periodItems PeriodInstallment[]
 }
 

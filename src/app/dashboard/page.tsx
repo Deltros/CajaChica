@@ -9,7 +9,7 @@ import IncomeModal from "@/components/IncomeModal";
 type Account = { id: string; name: string; type: string };
 type Income = { id: string; accountId: string; amount: number; label: string | null; account: Account };
 type Expense = { id: string; description: string; amount: number; type: string; date: string; accountId: string | null };
-type PeriodInstallment = { id: string; planId: string; amount: number; isPaid: boolean; plan: { name: string; totalInstallments: number; paidInstallments: number; totalAmount: number; startYear: number; startMonth: number } };
+type PeriodInstallment = { id: string; planId: string; amount: number; isPaid: boolean; plan: { name: string; totalInstallments: number; paidInstallments: number; totalAmount: number; startYear: number; startMonth: number; accountId: string | null } };
 type Period = { id: string; incomes: Income[]; expenses: Expense[]; installments: PeriodInstallment[] };
 
 const MONTHS = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
@@ -25,6 +25,9 @@ export default function DashboardPage() {
   const [showIncomeModal, setShowIncomeModal] = useState(false);
   const [selectedInstallment, setSelectedInstallment] = useState<PeriodInstallment | null>(null);
   const [confirmDeleteInstallment, setConfirmDeleteInstallment] = useState(false);
+  const [balanceEdit, setBalanceEdit] = useState<{ account: Account; calculated: number } | null>(null);
+  const [balanceEditValue, setBalanceEditValue] = useState("");
+  const [balanceEditLoading, setBalanceEditLoading] = useState(false);
 
   const fetchPeriod = useCallback(async () => {
     setLoading(true);
@@ -42,6 +45,31 @@ export default function DashboardPage() {
 
   async function deleteExpense(id: string) {
     await fetch(`/api/expenses?id=${id}`, { method: "DELETE" });
+    fetchPeriod();
+  }
+
+  async function applyBalanceAdjustment() {
+    if (!balanceEdit || !period) return;
+    const real = parseInt(balanceEditValue || "0");
+    const diff = real - balanceEdit.calculated;
+    if (diff === 0) { setBalanceEdit(null); return; }
+
+    setBalanceEditLoading(true);
+    if (diff > 0) {
+      await fetch("/api/incomes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ periodId: period.id, accountId: balanceEdit.account.id, amount: diff, label: "Ajuste de saldo" }),
+      });
+    } else {
+      await fetch("/api/expenses", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ periodId: period.id, description: "Ajuste de saldo", amount: Math.abs(diff), type: "VARIABLE", accountId: balanceEdit.account.id }),
+      });
+    }
+    setBalanceEditLoading(false);
+    setBalanceEdit(null);
     fetchPeriod();
   }
 
@@ -159,9 +187,14 @@ export default function DashboardPage() {
                   {accounts.map((account) => {
                     const income = period?.incomes.filter((i) => i.accountId === account.id).reduce((s, i) => s + i.amount, 0) ?? 0;
                     const spent = period?.expenses.filter((e) => e.accountId === account.id).reduce((s, e) => s + e.amount, 0) ?? 0;
-                    const balance = income - spent;
+                    const installmentSpent = period?.installments.filter((i) => !i.isPaid && i.plan.accountId === account.id).reduce((s, i) => s + i.amount, 0) ?? 0;
+                    const balance = income - spent - installmentSpent;
                     return (
-                      <li key={account.id} className="flex items-center justify-between px-4 py-3">
+                      <li
+                        key={account.id}
+                        onClick={() => { setBalanceEdit({ account, calculated: balance }); setBalanceEditValue(String(balance)); }}
+                        className="flex items-center justify-between px-4 py-3 hover:bg-gray-50 cursor-pointer transition-colors"
+                      >
                         <p className="text-sm font-medium text-gray-800">{account.name}</p>
                         <span className={`text-sm font-semibold ${balance >= 0 ? "text-blue-700" : "text-red-600"}`}>
                           {formatCLP(balance)}
@@ -318,6 +351,46 @@ export default function DashboardPage() {
           onClose={() => setShowIncomeModal(false)}
           onSaved={fetchPeriod}
         />
+      )}
+
+      {balanceEdit && (
+        <Modal title={balanceEdit.account.name} onClose={() => setBalanceEdit(null)}>
+          <div className="space-y-4">
+            <div className="bg-gray-50 rounded-xl p-3 flex justify-between text-sm">
+              <span className="text-gray-500">Saldo calculado</span>
+              <span className="font-semibold text-gray-700">{formatCLP(balanceEdit.calculated)}</span>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Saldo real en cuenta (CLP)</label>
+              <input
+                type="number"
+                autoFocus
+                value={balanceEditValue}
+                onChange={(e) => setBalanceEditValue(e.target.value)}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            {balanceEditValue !== "" && parseInt(balanceEditValue) !== balanceEdit.calculated && (
+              <div className={`rounded-xl p-3 text-sm ${parseInt(balanceEditValue) > balanceEdit.calculated ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"}`}>
+                {parseInt(balanceEditValue) > balanceEdit.calculated
+                  ? `Se agregará un ingreso de ${formatCLP(parseInt(balanceEditValue) - balanceEdit.calculated)}`
+                  : `Se agregará un gasto de ${formatCLP(balanceEdit.calculated - parseInt(balanceEditValue))}`}
+              </div>
+            )}
+            <div className="flex gap-2 pt-1">
+              <button onClick={() => setBalanceEdit(null)} className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-600 hover:bg-gray-50">
+                Cancelar
+              </button>
+              <button
+                onClick={applyBalanceAdjustment}
+                disabled={balanceEditLoading}
+                className="flex-1 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
+              >
+                {balanceEditLoading ? "Guardando..." : "Guardar"}
+              </button>
+            </div>
+          </div>
+        </Modal>
       )}
 
       {selectedInstallment && (

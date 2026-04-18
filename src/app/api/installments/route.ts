@@ -9,6 +9,7 @@ const planSchema = z.object({
   totalInstallments: z.number().int().positive(),
   periodId: z.string(),
   startThisMonth: z.boolean().default(true),
+  accountId: z.string().optional(),
 });
 
 function addMonths(year: number, month: number, delta: number) {
@@ -36,7 +37,7 @@ export async function POST(req: Request) {
   const parsed = planSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: "Datos inválidos" }, { status: 400 });
 
-  const { name, installmentAmount, totalInstallments, periodId, startThisMonth } = parsed.data;
+  const { name, installmentAmount, totalInstallments, periodId, startThisMonth, accountId } = parsed.data;
 
   // Verify the period belongs to this user
   const period = await prisma.monthlyPeriod.findFirst({
@@ -52,6 +53,7 @@ export async function POST(req: Request) {
   const plan = await prisma.installmentPlan.create({
     data: {
       userId: session.user.id,
+      accountId: accountId ?? null,
       name,
       installmentAmount,
       totalAmount: installmentAmount * totalInstallments,
