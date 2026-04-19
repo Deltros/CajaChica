@@ -2,13 +2,24 @@
 
 import { useState } from "react";
 import CategoryPicker from "./CategoryPicker";
+import NumericInput from "./NumericInput";
 
 type Account = { id: string; name: string };
+
+export type EditExpense = {
+  id: string;
+  description: string;
+  amount: number;
+  type: string;
+  accountId: string | null;
+  categories: { category: { id: string; name: string } }[];
+};
 
 type Props = {
   periodId: string;
   accounts: Account[];
   defaultAccountId?: string;
+  editExpense?: EditExpense;
   onClose: () => void;
   onSaved: () => void;
 };
@@ -29,12 +40,17 @@ const MONO_INPUT: React.CSSProperties = {
   fontVariantNumeric: "tabular-nums",
 };
 
-export default function ExpenseModal({ periodId, accounts, defaultAccountId, onClose, onSaved }: Props) {
-  const [description, setDescription] = useState("");
-  const [amount, setAmount] = useState("");
-  const [type, setType] = useState<"FIXED" | "VARIABLE" | "SAVING" | "PENDING">("VARIABLE");
-  const [accountId, setAccountId] = useState<string>(defaultAccountId ?? "");
-  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+export default function ExpenseModal({ periodId, accounts, defaultAccountId, editExpense, onClose, onSaved }: Props) {
+  const isEditing = !!editExpense;
+  const [description, setDescription] = useState(editExpense?.description ?? "");
+  const [amount, setAmount] = useState(editExpense ? String(editExpense.amount) : "");
+  const [type, setType] = useState<"FIXED" | "VARIABLE" | "SAVING" | "PENDING">(
+    (editExpense?.type as "FIXED" | "VARIABLE" | "SAVING" | "PENDING") ?? "VARIABLE"
+  );
+  const [accountId, setAccountId] = useState<string>(editExpense?.accountId ?? defaultAccountId ?? "");
+  const [selectedCategories, setSelectedCategories] = useState<string[]>(
+    editExpense?.categories.map((c) => c.category.id) ?? []
+  );
   const [isInstallment, setIsInstallment] = useState(false);
   const [totalInstallments, setTotalInstallments] = useState("2");
   const [startThisMonth, setStartThisMonth] = useState(true);
@@ -53,7 +69,18 @@ export default function ExpenseModal({ periodId, accounts, defaultAccountId, onC
     setError("");
 
     let res: Response;
-    if (isInstallment) {
+    if (isEditing) {
+      res = await fetch("/api/expenses", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: editExpense!.id,
+          description, amount: amountNum, type,
+          accountId: accountId || null,
+          categoryIds: selectedCategories,
+        }),
+      });
+    } else if (isInstallment) {
       res = await fetch("/api/installments", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -92,7 +119,7 @@ export default function ExpenseModal({ periodId, accounts, defaultAccountId, onC
   ] as const;
 
   return (
-    <Modal title="Nuevo gasto" onClose={onClose}>
+    <Modal title={isEditing ? "Editar gasto" : "Nuevo gasto"} onClose={onClose}>
       <form onSubmit={handleSubmit}>
 
         {/* Tipo */}
@@ -140,14 +167,10 @@ export default function ExpenseModal({ periodId, accounts, defaultAccountId, onC
         {/* Monto */}
         <div style={{ marginBottom: 14 }}>
           <label style={FIELD_LABEL}>{isInstallment ? "Monto total · CLP" : "Monto · CLP"}</label>
-          <input
-            type="number"
-            inputMode="numeric"
+          <NumericInput
             value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            required
-            min={1}
-            placeholder="$0"
+            onChange={setAmount}
+            placeholder="0"
             style={MONO_INPUT}
           />
         </div>
@@ -172,8 +195,8 @@ export default function ExpenseModal({ periodId, accounts, defaultAccountId, onC
           </div>
         )}
 
-        {/* Toggle cuotas — oculto para gastos pendientes */}
-        {type !== "PENDING" && (
+        {/* Toggle cuotas — oculto para gastos pendientes y en modo edición */}
+        {!isEditing && type !== "PENDING" && (
           <div style={{ marginBottom: 14 }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 0", fontSize: 14, color: "var(--ink-2)" }}>
               <span>Pagar en cuotas</span>
@@ -251,7 +274,7 @@ export default function ExpenseModal({ periodId, accounts, defaultAccountId, onC
             disabled={loading}
             style={{ flex: 1, padding: 13, borderRadius: 14, border: "none", background: "var(--ink)", color: "var(--bg)", cursor: "pointer", fontFamily: "inherit", fontSize: 14, fontWeight: 500, opacity: loading ? 0.5 : 1 }}
           >
-            {loading ? "Guardando…" : "Guardar"}
+            {loading ? (isEditing ? "Actualizando…" : "Guardando…") : (isEditing ? "Actualizar" : "Guardar")}
           </button>
         </div>
       </form>

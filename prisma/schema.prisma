@@ -59,11 +59,12 @@ model MonthlyPeriod {
 
 // Ingresos del período
 model Income {
-  id        String  @id @default(cuid())
+  id        String   @id @default(cuid())
   periodId  String
   accountId String
   amount    Int
   label     String?
+  date      DateTime @default(now())
 
   period     MonthlyPeriod   @relation(fields: [periodId], references: [id], onDelete: Cascade)
   account    Account         @relation(fields: [accountId], references: [id], onDelete: Cascade)

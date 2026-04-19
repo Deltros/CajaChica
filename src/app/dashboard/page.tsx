@@ -2,7 +2,8 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { formatCLP, daysLeftInMonth } from "@/lib/format";
-import ExpenseModal, { Modal } from "@/components/ExpenseModal";
+import ExpenseModal, { Modal, type EditExpense } from "@/components/ExpenseModal";
+import type { EditIncome } from "@/components/IncomeModal";
 import IncomeModal from "@/components/IncomeModal";
 import BalanceAdjustModal from "@/components/BalanceAdjustModal";
 import HamburgerMenu from "@/components/HamburgerMenu";
@@ -12,10 +13,11 @@ import StackedBudgetBar from "@/components/StackedBudgetBar";
 import PendingExpenseModal from "@/components/PendingExpenseModal";
 
 type Account = { id: string; name: string; type: string; isActive: boolean; isDefault: boolean };
-type Income = { id: string; accountId: string; amount: number; label: string | null; account: Account; categories: { category: { id: string; name: string } }[] };
+type Income = { id: string; accountId: string; amount: number; label: string | null; date: string; account: Account; categories: { category: { id: string; name: string } }[] };
 type Expense = { id: string; description: string; amount: number; type: string; date: string; accountId: string | null; account: { name: string } | null; categories: { category: { id: string; name: string } }[] };
 type PeriodInstallment = { id: string; planId: string; amount: number; isPaid: boolean; plan: { name: string; totalInstallments: number; paidInstallments: number; totalAmount: number; startYear: number; startMonth: number; accountId: string | null } };
 type Period = { id: string; incomes: Income[]; expenses: Expense[]; installments: PeriodInstallment[] };
+type InstallmentPlan = { id: string; name: string; totalInstallments: number; paidInstallments: number; installmentAmount: number; accountId: string | null };
 
 const MONTHS = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 const DOT_COLORS = ["var(--accent)", "var(--cool)", "#C2883D", "var(--ink-4)", "var(--danger)"];
@@ -33,26 +35,31 @@ export default function DashboardPage() {
   const [month, setMonth] = useState(now.getMonth() + 1);
   const [period, setPeriod] = useState<Period | null>(null);
   const [accounts, setAccounts] = useState<Account[]>([]);
+  const [allPlans, setAllPlans] = useState<InstallmentPlan[]>([]);
   const [loading, setLoading] = useState(true);
   const [showExpenseModal, setShowExpenseModal] = useState(false);
   const [showIncomeModal, setShowIncomeModal] = useState(false);
   const [selectedInstallment, setSelectedInstallment] = useState<PeriodInstallment | null>(null);
   const [confirmDeleteInstallment, setConfirmDeleteInstallment] = useState(false);
-  const [balanceEdit, setBalanceEdit] = useState<{ account: Account; calculated: number } | null>(null);
+  const [balanceEdit, setBalanceEdit] = useState<{ account: Account; calculated: number; totalRemainingDebt: number } | null>(null);
   const [showIngresos, setShowIngresos] = useState(true);
   const [showSaldo, setShowSaldo] = useState(true);
   const [showGastos, setShowGastos] = useState(true);
   const [selectedPending, setSelectedPending] = useState<Expense | null>(null);
+  const [editExpense, setEditExpense] = useState<EditExpense | null>(null);
+  const [editIncome, setEditIncome] = useState<EditIncome | null>(null);
 
   const fetchPeriod = useCallback(async () => {
     setLoading(true);
-    const [periodRes, accountsRes] = await Promise.all([
+    const [periodRes, accountsRes, plansRes] = await Promise.all([
       fetch(`/api/periods?year=${year}&month=${month}`),
       fetch("/api/accounts"),
+      fetch("/api/installments"),
     ]);
-    const [periodData, accountsData] = await Promise.all([periodRes.json(), accountsRes.json()]);
+    const [periodData, accountsData, plansData] = await Promise.all([periodRes.json(), accountsRes.json(), plansRes.json()]);
     setPeriod(periodData);
     setAccounts(accountsData);
+    setAllPlans(plansData);
     setLoading(false);
   }, [year, month]);
 
@@ -98,7 +105,17 @@ export default function DashboardPage() {
     const spent = period?.expenses.filter((e) => e.accountId === account.id && e.type !== "PENDING").reduce((s, e) => s + e.amount, 0) ?? 0;
     const instSpent = period?.installments.filter((i) => !i.isPaid && i.plan.accountId === account.id).reduce((s, i) => s + i.amount, 0) ?? 0;
     const pendingSpent = pendingExpenses.filter((e) => e.accountId === account.id).reduce((s, e) => s + e.amount, 0);
-    return { account, balance: inc - spent - instSpent, pendingSpent };
+    const plansDebt = allPlans
+      .filter((p) => p.accountId === account.id)
+      .reduce((s, p) => s + (p.totalInstallments - p.paidInstallments) * p.installmentAmount, 0);
+    const adjExpenses = period?.expenses
+      .filter((e) => e.accountId === account.id && e.description === "Ajuste de saldo total" && e.type !== "PENDING")
+      .reduce((s, e) => s + e.amount, 0) ?? 0;
+    const adjIncomes = period?.incomes
+      .filter((i) => i.accountId === account.id && i.label === "Ajuste de saldo total")
+      .reduce((s, i) => s + i.amount, 0) ?? 0;
+    const totalRemainingDebt = plansDebt + adjExpenses - adjIncomes;
+    return { account, balance: inc - spent - instSpent, pendingSpent, totalRemainingDebt };
   });
   const totalPositive = accountBalances.filter((b) => b.balance > 0).reduce((s, b) => s + b.balance, 0);
   const totalNegative = accountBalances.filter((b) => b.balance < 0).reduce((s, b) => s + b.balance, 0);
@@ -130,9 +147,6 @@ export default function DashboardPage() {
         <header className="dash-header" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
           <HamburgerMenu />
           <Logo size={34} showTagline={false} />
-          <div style={{ width: 40, height: 40, borderRadius: 999, background: "var(--ink)", color: "var(--bg)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 600, fontSize: 14, flexShrink: 0 }}>
-            U
-          </div>
         </header>
 
         {/* ── Month selector ── */}
@@ -230,7 +244,7 @@ export default function DashboardPage() {
                       onClick={(e) => { e.stopPropagation(); setShowIncomeModal(true); }}
                       style={{ fontSize: 12, color: "var(--ink-2)", background: "var(--bg-soft)", border: "1px solid var(--line)", padding: "4px 10px", borderRadius: 99, cursor: "pointer", fontWeight: 500 }}
                     >
-                      + Agregar
+                      +
                     </button>
                   </div>
                 </div>
@@ -239,7 +253,7 @@ export default function DashboardPage() {
                     {!period?.incomes.length ? (
                       <p style={{ textAlign: "center", color: "var(--ink-4)", fontSize: 13, padding: "16px 0" }}>Sin ingresos registrados</p>
                     ) : (
-                      <IncomeList items={period.incomes} onDelete={deleteIncome} />
+                      <IncomeList items={period.incomes} onDelete={deleteIncome} onEdit={setEditIncome} />
                     )}
                   </div>
                 )}
@@ -282,10 +296,10 @@ export default function DashboardPage() {
                         </div>
                       )}
                       <ul style={{ margin: 0, padding: 0, listStyle: "none" }}>
-                        {accountBalances.map(({ account, balance, pendingSpent }, idx) => (
+                        {accountBalances.map(({ account, balance, pendingSpent, totalRemainingDebt }, idx) => (
                           <li
                             key={account.id}
-                            onClick={() => setBalanceEdit({ account, calculated: balance })}
+                            onClick={() => setBalanceEdit({ account, calculated: balance, totalRemainingDebt })}
                             style={{
                               display: "flex", alignItems: "center", justifyContent: "space-between",
                               padding: "14px 18px",
@@ -306,6 +320,11 @@ export default function DashboardPage() {
                                   ({balance - pendingSpent < 0 ? neg(balance - pendingSpent) : formatCLP(balance - pendingSpent)} c/ pend.)
                                 </span>
                               )}
+                              {totalRemainingDebt > 0 && (
+                                <span style={{ ...MONO, fontSize: 11, color: "#C2883D" }}>
+                                  Total cuotas: {neg(totalRemainingDebt)}
+                                </span>
+                              )}
                             </div>
                           </li>
                         ))}
@@ -324,11 +343,19 @@ export default function DashboardPage() {
                 >
                   <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                     <span style={chevStyle(showGastos)}>›</span>
-                    <span style={{ fontSize: 12, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--ink-2)", fontWeight: 600 }}>Detalle de gastos</span>
+                    <span style={{ fontSize: 12, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--ink-2)", fontWeight: 600 }}>Gastos</span>
                   </div>
-                  <span style={{ ...SERIF, fontSize: 22, letterSpacing: "-0.02em", color: "var(--danger)" }}>
-                    {formatCLP(totalFixed + totalSavings + totalVariable + totalPendingInstallments + totalPending)}
-                  </span>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <span style={{ ...SERIF, fontSize: 22, letterSpacing: "-0.02em", color: "var(--danger)" }}>
+                      {formatCLP(totalFixed + totalSavings + totalVariable + totalPendingInstallments + totalPending)}
+                    </span>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setShowExpenseModal(true); }}
+                      style={{ fontSize: 12, color: "var(--ink-2)", background: "var(--bg-soft)", border: "1px solid var(--line)", padding: "4px 10px", borderRadius: 99, cursor: "pointer", fontWeight: 500 }}
+                    >
+                      +
+                    </button>
+                  </div>
                 </div>
 
                 {showGastos && (
@@ -363,6 +390,16 @@ export default function DashboardPage() {
                                     Cuota {inst.plan.paidInstallments + 1} de {inst.plan.totalInstallments}
                                   </span>
                                 </div>
+                                {inst.plan.accountId && (() => {
+                                  const acc = accounts.find((a) => a.id === inst.plan.accountId);
+                                  return acc ? (
+                                    <div style={{ marginTop: 6 }}>
+                                      <span style={{ padding: "2px 8px", borderRadius: 99, background: "var(--bg-soft)", color: "var(--ink-2)", border: "1px solid var(--line)", fontSize: 11 }}>
+                                        {acc.name}
+                                      </span>
+                                    </div>
+                                  ) : null;
+                                })()}
                               </div>
                               <span style={{ ...MONO, fontSize: 14, fontWeight: 500, color: "var(--danger)", whiteSpace: "nowrap" }}>
                                 {formatCLP(inst.amount)}
@@ -377,7 +414,7 @@ export default function DashboardPage() {
                     {fixedExpenses.length > 0 && (
                       <>
                         <CatHeader label="Gastos fijos" total={totalFixed} barColor="var(--danger)" />
-                        <ExpenseList items={fixedExpenses} onDelete={deleteExpense} />
+                        <ExpenseList items={fixedExpenses} onDelete={deleteExpense} onEdit={setEditExpense} />
                       </>
                     )}
 
@@ -385,7 +422,7 @@ export default function DashboardPage() {
                     {savings.length > 0 && (
                       <>
                         <CatHeader label="Ahorros" total={totalSavings} barColor="var(--cool)" />
-                        <ExpenseList items={savings} onDelete={deleteExpense} />
+                        <ExpenseList items={savings} onDelete={deleteExpense} onEdit={setEditExpense} />
                       </>
                     )}
 
@@ -394,6 +431,7 @@ export default function DashboardPage() {
                     <ExpenseList
                       items={variableExpenses}
                       onDelete={deleteExpense}
+                      onEdit={setEditExpense}
                       showDate
                       emptyText="Sin gastos variables aún"
                     />
@@ -470,11 +508,29 @@ export default function DashboardPage() {
           onSaved={fetchPeriod}
         />
       )}
+      {editExpense && period && (
+        <ExpenseModal
+          periodId={period.id}
+          accounts={activeAccounts}
+          editExpense={editExpense}
+          onClose={() => setEditExpense(null)}
+          onSaved={fetchPeriod}
+        />
+      )}
       {showIncomeModal && period && (
         <IncomeModal
           periodId={period.id}
           accounts={activeAccounts}
           onClose={() => setShowIncomeModal(false)}
+          onSaved={fetchPeriod}
+        />
+      )}
+      {editIncome && period && (
+        <IncomeModal
+          periodId={period.id}
+          accounts={activeAccounts}
+          editIncome={editIncome}
+          onClose={() => setEditIncome(null)}
           onSaved={fetchPeriod}
         />
       )}
@@ -492,6 +548,7 @@ export default function DashboardPage() {
         <BalanceAdjustModal
           account={balanceEdit.account}
           calculated={balanceEdit.calculated}
+          totalRemainingDebt={balanceEdit.totalRemainingDebt}
           periodId={period.id}
           onClose={() => setBalanceEdit(null)}
           onSaved={fetchPeriod}
@@ -578,9 +635,9 @@ function CatHeader({ label, total, barColor }: { label: string; total: number; b
 }
 
 function ExpenseList({
-  items, onDelete, showDate = false, emptyText,
+  items, onDelete, onEdit, showDate = false, emptyText,
 }: {
-  items: Expense[]; onDelete: (id: string) => void; showDate?: boolean; emptyText?: string;
+  items: Expense[]; onDelete: (id: string) => void; onEdit?: (e: Expense) => void; showDate?: boolean; emptyText?: string;
 }) {
   const [confirmId, setConfirmId] = useState<string | null>(null);
 
@@ -597,17 +654,21 @@ function ExpenseList({
             display: "flex", alignItems: "flex-start", justifyContent: "space-between",
             gap: 12, padding: "14px 18px",
             borderTop: idx === 0 ? "none" : "1px solid var(--line-soft)",
+            cursor: onEdit ? "pointer" : "default",
           }}
+          onClick={() => onEdit?.(e)}
         >
           <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 6 }}>
-            <span style={{ fontSize: 14.5, color: "var(--ink)" }}>{e.description}</span>
-            {(showDate || e.account || e.categories.length > 0) && (
+            <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+              {showDate && (
+                <span style={{ fontSize: 11, color: "var(--ink-3)", flexShrink: 0 }}>
+                  {new Date(e.date).toLocaleDateString("es-CL", { day: "numeric", month: "short" })}
+                </span>
+              )}
+              <span style={{ fontSize: 14.5, color: "var(--ink)" }}>{e.description}</span>
+            </div>
+            {(e.account || e.categories.length > 0) && (
               <div style={{ display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center", fontSize: 11 }}>
-                {showDate && (
-                  <span style={{ color: "var(--ink-3)" }}>
-                    {new Date(e.date).toLocaleDateString("es-CL", { day: "numeric", month: "short" })}
-                  </span>
-                )}
                 {e.account && (
                   <span style={{ padding: "2px 8px", borderRadius: 99, background: "var(--bg-soft)", color: "var(--ink-2)", border: "1px solid var(--line)" }}>
                     {e.account.name}
@@ -623,7 +684,7 @@ function ExpenseList({
           </div>
 
           {confirmId === e.id ? (
-            <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+            <div onClick={(ev) => ev.stopPropagation()} style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
               <span style={{ fontSize: 11, color: "var(--ink-3)" }}>¿Eliminar?</span>
               <button onClick={() => setConfirmId(null)} style={{ fontSize: 11, padding: "3px 8px", borderRadius: 8, background: "var(--bg-soft)", border: "1px solid var(--line)", color: "var(--ink-2)", cursor: "pointer" }}>No</button>
               <button onClick={() => { setConfirmId(null); onDelete(e.id); }} style={{ fontSize: 11, padding: "3px 8px", borderRadius: 8, background: "var(--danger)", border: "none", color: "white", cursor: "pointer" }}>Sí</button>
@@ -634,7 +695,7 @@ function ExpenseList({
                 {formatCLP(e.amount)}
               </span>
               <button
-                onClick={() => setConfirmId(e.id)}
+                onClick={(ev) => { ev.stopPropagation(); setConfirmId(e.id); }}
                 aria-label="Eliminar gasto"
                 style={{ width: 22, height: 22, borderRadius: 99, border: "none", background: "transparent", color: "var(--ink-4)", cursor: "pointer", fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
               >
@@ -648,60 +709,73 @@ function ExpenseList({
   );
 }
 
-function IncomeList({ items, onDelete }: { items: Income[]; onDelete: (id: string) => void }) {
+function IncomeList({ items, onDelete, onEdit }: { items: Income[]; onDelete: (id: string) => void; onEdit?: (i: Income) => void }) {
   const [confirmId, setConfirmId] = useState<string | null>(null);
 
   return (
     <ul style={{ margin: 0, padding: 0, listStyle: "none" }}>
-      {items.map((i, idx) => (
-        <li
-          key={i.id}
-          style={{
-            display: "flex", alignItems: "center", justifyContent: "space-between",
-            padding: "14px 18px",
-            borderTop: idx === 0 ? "none" : "1px solid var(--line-soft)",
-            fontSize: 14,
-          }}
-        >
-          <span style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <span style={{ width: 10, height: 10, borderRadius: 3, background: DOT_COLORS[idx % DOT_COLORS.length], flexShrink: 0, display: "block" }} />
-            <span style={{ color: "var(--ink)" }}>
-              {i.account.name}
-              {i.label && <span style={{ color: "var(--ink-3)", marginLeft: 6, fontSize: 12 }}>{i.label}</span>}
-              {i.categories?.length > 0 && (
-                <span style={{ display: "inline-flex", gap: 4, marginLeft: 6, flexWrap: "wrap" }}>
-                  {i.categories.map(({ category: c }) => (
-                    <span key={c.id} style={{ fontSize: 10, padding: "2px 7px", borderRadius: 99, background: "var(--bg-soft)", color: "var(--ink-3)", border: "1px solid var(--line)", letterSpacing: "0.02em" }}>
+      {items.map((i, idx) => {
+        const hasLabel = !!i.label;
+        const hasBottomRow = hasLabel || (i.categories?.length > 0);
+        return (
+          <li
+            key={i.id}
+            style={{
+              display: "flex", alignItems: "flex-start", justifyContent: "space-between",
+              gap: 12, padding: "14px 18px",
+              borderTop: idx === 0 ? "none" : "1px solid var(--line-soft)",
+              cursor: onEdit ? "pointer" : "default",
+            }}
+            onClick={() => onEdit?.(i)}
+          >
+            <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 6 }}>
+              <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+                <span style={{ fontSize: 11, color: "var(--ink-3)", flexShrink: 0 }}>
+                  {new Date(i.date).toLocaleDateString("es-CL", { day: "numeric", month: "short" })}
+                </span>
+                <span style={{ fontSize: 14.5, color: "var(--ink)" }}>
+                  {hasLabel ? i.label : i.account.name}
+                </span>
+              </div>
+              {(hasLabel || (i.categories?.length > 0)) && (
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center", fontSize: 11 }}>
+                  {hasLabel && (
+                    <span style={{ padding: "2px 8px", borderRadius: 99, background: "var(--bg-soft)", color: "var(--ink-2)", border: "1px solid var(--line)" }}>
+                      {i.account.name}
+                    </span>
+                  )}
+                  {i.categories?.map(({ category: c }) => (
+                    <span key={c.id} style={{ padding: "2px 8px", borderRadius: 99, background: "var(--accent-soft)", color: "var(--accent)", border: "none" }}>
                       {c.name}
                     </span>
                   ))}
-                </span>
+                </div>
               )}
-            </span>
-          </span>
+            </div>
 
-          {confirmId === i.id ? (
-            <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
-              <span style={{ fontSize: 11, color: "var(--ink-3)" }}>¿Eliminar?</span>
-              <button onClick={() => setConfirmId(null)} style={{ fontSize: 11, padding: "3px 8px", borderRadius: 8, background: "var(--bg-soft)", border: "1px solid var(--line)", color: "var(--ink-2)", cursor: "pointer" }}>No</button>
-              <button onClick={() => { setConfirmId(null); onDelete(i.id); }} style={{ fontSize: 11, padding: "3px 8px", borderRadius: 8, background: "var(--danger)", border: "none", color: "white", cursor: "pointer" }}>Sí</button>
-            </div>
-          ) : (
-            <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
-              <span style={{ fontFamily: "var(--font-geist-mono), ui-monospace, monospace", fontVariantNumeric: "tabular-nums", fontWeight: 500, fontSize: 13.5, color: "var(--accent)" }}>
-                + {formatCLP(i.amount)}
-              </span>
-              <button
-                onClick={() => setConfirmId(i.id)}
-                aria-label="Eliminar ingreso"
-                style={{ width: 22, height: 22, borderRadius: 99, border: "none", background: "transparent", color: "var(--ink-4)", cursor: "pointer", fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center" }}
-              >
-                ✕
-              </button>
-            </div>
-          )}
-        </li>
-      ))}
+            {confirmId === i.id ? (
+              <div onClick={(ev) => ev.stopPropagation()} style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+                <span style={{ fontSize: 11, color: "var(--ink-3)" }}>¿Eliminar?</span>
+                <button onClick={() => setConfirmId(null)} style={{ fontSize: 11, padding: "3px 8px", borderRadius: 8, background: "var(--bg-soft)", border: "1px solid var(--line)", color: "var(--ink-2)", cursor: "pointer" }}>No</button>
+                <button onClick={() => { setConfirmId(null); onDelete(i.id); }} style={{ fontSize: 11, padding: "3px 8px", borderRadius: 8, background: "var(--danger)", border: "none", color: "white", cursor: "pointer" }}>Sí</button>
+              </div>
+            ) : (
+              <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+                <span style={{ fontFamily: "var(--font-geist-mono), ui-monospace, monospace", fontVariantNumeric: "tabular-nums", fontWeight: 500, fontSize: 14, color: "var(--accent)", whiteSpace: "nowrap" }}>
+                  + {formatCLP(i.amount)}
+                </span>
+                <button
+                  onClick={(ev) => { ev.stopPropagation(); setConfirmId(i.id); }}
+                  aria-label="Eliminar ingreso"
+                  style={{ width: 22, height: 22, borderRadius: 99, border: "none", background: "transparent", color: "var(--ink-4)", cursor: "pointer", fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
+                >
+                  ✕
+                </button>
+              </div>
+            )}
+          </li>
+        );
+      })}
     </ul>
   );
 }

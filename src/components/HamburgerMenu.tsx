@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
+import { Logo } from "./Logo";
 
 const NAV_ITEMS = [
   { href: "/dashboard", label: "Inicio" },
@@ -49,9 +50,7 @@ export default function HamburgerMenu() {
               display: "flex", alignItems: "center", justifyContent: "space-between",
               padding: "18px 20px", borderBottom: "1px solid var(--line)",
             }}>
-              <span style={{ fontFamily: "var(--font-instrument-serif)", fontSize: 22, letterSpacing: "-0.01em" }}>
-                caja · chica
-              </span>
+              <Logo size={28} showTagline={false} />
               <button
                 onClick={() => setOpen(false)}
                 style={{

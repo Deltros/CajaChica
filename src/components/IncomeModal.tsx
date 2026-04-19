@@ -3,12 +3,22 @@
 import { useState } from "react";
 import { Modal } from "./ExpenseModal";
 import CategoryPicker from "./CategoryPicker";
+import NumericInput from "./NumericInput";
 
 type Account = { id: string; name: string; type: string };
+
+export type EditIncome = {
+  id: string;
+  amount: number;
+  label: string | null;
+  accountId: string;
+  categories: { category: { id: string; name: string } }[];
+};
 
 type Props = {
   periodId: string;
   accounts: Account[];
+  editIncome?: EditIncome;
   onClose: () => void;
   onSaved: () => void;
 };
@@ -24,14 +34,17 @@ const FIELD_INPUT: React.CSSProperties = {
   padding: "12px 14px", outline: "none", boxSizing: "border-box",
 };
 
-export default function IncomeModal({ periodId, accounts, onClose, onSaved }: Props) {
-  const [accountId, setAccountId] = useState(accounts[0]?.id ?? "");
-  const [amount, setAmount] = useState("");
-  const [label, setLabel] = useState("");
+export default function IncomeModal({ periodId, accounts, editIncome, onClose, onSaved }: Props) {
+  const isEditing = !!editIncome;
+  const [accountId, setAccountId] = useState(editIncome?.accountId ?? accounts[0]?.id ?? "");
+  const [amount, setAmount] = useState(editIncome ? String(editIncome.amount) : "");
+  const [label, setLabel] = useState(editIncome?.label ?? "");
   const [newAccountName, setNewAccountName] = useState("");
   const [newAccountType, setNewAccountType] = useState<"BANK" | "CASH">("BANK");
   const [showNewAccount, setShowNewAccount] = useState(false);
-  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [selectedCategories, setSelectedCategories] = useState<string[]>(
+    editIncome?.categories.map((c) => c.category.id) ?? []
+  );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -58,15 +71,12 @@ export default function IncomeModal({ periodId, accounts, onClose, onSaved }: Pr
     setError("");
 
     const res = await fetch("/api/incomes", {
-      method: "POST",
+      method: isEditing ? "PATCH" : "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        periodId,
-        accountId,
-        amount: parseInt(amount),
-        label: label || undefined,
-        categoryIds: selectedCategories.length > 0 ? selectedCategories : undefined,
-      }),
+      body: JSON.stringify(isEditing
+        ? { id: editIncome!.id, amount: parseInt(amount), label: label || null, accountId, categoryIds: selectedCategories }
+        : { periodId, accountId, amount: parseInt(amount), label: label || undefined, categoryIds: selectedCategories.length > 0 ? selectedCategories : undefined }
+      ),
     });
 
     setLoading(false);
@@ -80,7 +90,7 @@ export default function IncomeModal({ periodId, accounts, onClose, onSaved }: Pr
   }
 
   return (
-    <Modal title="Nuevo ingreso" onClose={onClose}>
+    <Modal title={isEditing ? "Editar ingreso" : "Nuevo ingreso"} onClose={onClose}>
       <form onSubmit={handleSubmit}>
 
         {/* Cuenta */}
@@ -160,14 +170,10 @@ export default function IncomeModal({ periodId, accounts, onClose, onSaved }: Pr
         {/* Monto */}
         <div style={{ marginBottom: 14 }}>
           <label style={FIELD_LABEL}>Monto · CLP</label>
-          <input
-            type="number"
-            inputMode="numeric"
+          <NumericInput
             value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            required
-            min={1}
-            placeholder="$0"
+            onChange={setAmount}
+            placeholder="0"
             style={{
               ...FIELD_INPUT,
               fontFamily: "var(--font-geist-mono), ui-monospace, monospace",
@@ -217,7 +223,7 @@ export default function IncomeModal({ periodId, accounts, onClose, onSaved }: Pr
             disabled={loading}
             style={{ flex: 1, padding: 13, borderRadius: 14, border: "none", background: "var(--ink)", color: "var(--bg)", cursor: "pointer", fontFamily: "inherit", fontSize: 14, fontWeight: 500, opacity: loading ? 0.5 : 1 }}
           >
-            {loading ? "Guardando…" : "Guardar"}
+            {loading ? (isEditing ? "Actualizando…" : "Guardando…") : (isEditing ? "Actualizar" : "Guardar")}
           </button>
         </div>
       </form>

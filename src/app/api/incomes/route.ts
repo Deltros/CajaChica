@@ -36,6 +36,40 @@ export async function POST(req: Request) {
   return NextResponse.json(income, { status: 201 });
 }
 
+export async function PATCH(req: Request) {
+  const session = await auth();
+  if (!session?.user?.id) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+
+  const body = await req.json();
+  const { id, amount, label, accountId, categoryIds } = body;
+  if (!id) return NextResponse.json({ error: "ID requerido" }, { status: 400 });
+
+  const income = await prisma.income.findFirst({
+    where: { id, period: { userId: session.user.id } },
+  });
+  if (!income) return NextResponse.json({ error: "No encontrado" }, { status: 404 });
+
+  const updated = await prisma.income.update({
+    where: { id },
+    data: {
+      ...(amount !== undefined && { amount: parseInt(String(amount)) }),
+      ...(label !== undefined && { label: label || null }),
+      ...(accountId !== undefined && { accountId }),
+    },
+  });
+
+  if (categoryIds !== undefined) {
+    await prisma.incomeCategory.deleteMany({ where: { incomeId: id } });
+    if (categoryIds.length > 0) {
+      await prisma.incomeCategory.createMany({
+        data: categoryIds.map((categoryId: string) => ({ incomeId: id, categoryId })),
+      });
+    }
+  }
+
+  return NextResponse.json(updated);
+}
+
 export async function DELETE(req: Request) {
   const session = await auth();
   if (!session?.user?.id) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
