@@ -92,6 +92,7 @@ export default function DashboardPage() {
   const totalVariable = variableExpenses.reduce((s, e) => s + e.amount, 0);
   const pendingInstallments = period?.installments.filter((i) => !i.isPaid) ?? [];
   const totalPendingInstallments = pendingInstallments.reduce((s, i) => s + i.amount, 0);
+  const orphanedPlans = allPlans.filter((p) => !pendingInstallments.some((pi) => pi.planId === p.id));
   const remaining = totalIncome - totalFixed - totalSavings - totalVariable - totalPendingInstallments;
   const daysLeft = daysLeftInMonth();
   const dailyBudget = daysLeft > 0 ? Math.floor(remaining / daysLeft) : 0;
@@ -223,6 +224,7 @@ export default function DashboardPage() {
               totalSavings={totalSavings}
               totalCuotas={totalPendingInstallments}
               totalVariable={totalVariable}
+              totalPending={totalPending}
             />
 
             {/* ── Ingresos ── */}
@@ -291,7 +293,7 @@ export default function DashboardPage() {
                             Con pendientes
                           </span>
                           <span style={{ ...MONO, fontSize: 12, color: "var(--pending)", fontWeight: 500 }}>
-                            {neg(totalNegative - accountBalances.reduce((s, b) => s + b.pendingSpent, 0))} negativo
+                            {neg(totalNegative - accountBalances.reduce((s, b) => s + b.pendingSpent, 0))}
                           </span>
                         </div>
                       )}
@@ -323,6 +325,11 @@ export default function DashboardPage() {
                               {totalRemainingDebt > 0 && (
                                 <span style={{ ...MONO, fontSize: 11, color: "#C2883D" }}>
                                   Total cuotas: {neg(totalRemainingDebt)}
+                                </span>
+                              )}
+                              {totalRemainingDebt > 0 && pendingSpent > 0 && (
+                                <span style={{ ...MONO, fontSize: 11, color: "var(--pending)" }}>
+                                  Total c/ pend.: {neg(totalRemainingDebt + pendingSpent)}
                                 </span>
                               )}
                             </div>
@@ -361,9 +368,21 @@ export default function DashboardPage() {
                 {showGastos && (
                   <div style={{ borderTop: "1px solid var(--line-soft)" }}>
                     {/* Cuotas */}
-                    {pendingInstallments.length > 0 && (
+                    {(pendingInstallments.length > 0 || orphanedPlans.length > 0) && (
                       <>
                         <CatHeader label="Cuotas" total={totalPendingInstallments} barColor="#D9724C" />
+                        {orphanedPlans.length > 0 && (
+                          <ul style={{ margin: 0, padding: 0, listStyle: "none" }}>
+                            {orphanedPlans.map((plan) => (
+                              <OrphanedPlanItem
+                                key={plan.id}
+                                plan={plan}
+                                accounts={accounts}
+                                onDelete={deleteInstallmentPlan}
+                              />
+                            ))}
+                          </ul>
+                        )}
                         <ul style={{ margin: 0, padding: 0, listStyle: "none" }}>
                           {pendingInstallments.map((inst) => (
                             <li
@@ -777,5 +796,62 @@ function IncomeList({ items, onDelete, onEdit }: { items: Income[]; onDelete: (i
         );
       })}
     </ul>
+  );
+}
+
+function OrphanedPlanItem({
+  plan, accounts, onDelete,
+}: {
+  plan: InstallmentPlan;
+  accounts: Account[];
+  onDelete: (id: string) => void;
+}) {
+  const [confirm, setConfirm] = useState(false);
+  const acc = plan.accountId ? accounts.find((a) => a.id === plan.accountId) : null;
+  const remaining = (plan.totalInstallments - plan.paidInstallments) * plan.installmentAmount;
+
+  return (
+    <li style={{
+      display: "flex", alignItems: "flex-start", justifyContent: "space-between",
+      gap: 14, padding: "14px 18px", borderTop: "1px solid var(--line-soft)",
+      opacity: 0.75,
+    }}>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+          <span style={{ fontSize: 14.5, color: "var(--ink)" }}>{plan.name}</span>
+          <span style={{ fontSize: 10, padding: "1px 6px", borderRadius: 99, background: "var(--bg-soft)", color: "var(--ink-3)", border: "1px solid var(--line)", letterSpacing: "0.08em" }}>
+            sin cuota este mes
+          </span>
+        </div>
+        <div style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 11, color: "var(--ink-3)" }}>
+          {acc && (
+            <span style={{ padding: "2px 8px", borderRadius: 99, background: "var(--bg-soft)", color: "var(--ink-2)", border: "1px solid var(--line)" }}>
+              {acc.name}
+            </span>
+          )}
+          <span>{plan.totalInstallments - plan.paidInstallments} cuotas restantes · {new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP" }).format(plan.installmentAmount)}/mes</span>
+        </div>
+      </div>
+      {confirm ? (
+        <div onClick={(e) => e.stopPropagation()} style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+          <span style={{ fontSize: 11, color: "var(--ink-3)" }}>¿Eliminar?</span>
+          <button onClick={() => setConfirm(false)} style={{ fontSize: 11, padding: "3px 8px", borderRadius: 8, background: "var(--bg-soft)", border: "1px solid var(--line)", color: "var(--ink-2)", cursor: "pointer" }}>No</button>
+          <button onClick={() => onDelete(plan.id)} style={{ fontSize: 11, padding: "3px 8px", borderRadius: 8, background: "var(--danger)", border: "none", color: "white", cursor: "pointer" }}>Sí</button>
+        </div>
+      ) : (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+          <span style={{ fontFamily: "var(--font-geist-mono), ui-monospace, monospace", fontVariantNumeric: "tabular-nums", fontSize: 13, color: "var(--ink-3)", whiteSpace: "nowrap" }}>
+            {new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP" }).format(remaining)}
+          </span>
+          <button
+            onClick={() => setConfirm(true)}
+            aria-label="Eliminar plan"
+            style={{ width: 22, height: 22, borderRadius: 99, border: "none", background: "transparent", color: "var(--ink-4)", cursor: "pointer", fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
+          >
+            ✕
+          </button>
+        </div>
+      )}
+    </li>
   );
 }

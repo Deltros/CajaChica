@@ -6,12 +6,14 @@ type Props = {
   totalSavings: number;
   totalCuotas: number;
   totalVariable: number;
+  totalPending?: number;
 };
 
-export default function StackedBudgetBar({ income, totalFixed, totalSavings, totalCuotas, totalVariable }: Props) {
+export default function StackedBudgetBar({ income, totalFixed, totalSavings, totalCuotas, totalVariable, totalPending = 0 }: Props) {
   const fixedAndSavings = totalFixed + totalSavings;
   const spent = fixedAndSavings + totalCuotas + totalVariable;
   const remaining = income - spent;
+  const remainingWithPending = remaining - totalPending;
   const base = Math.max(income, spent, 1);
 
   const pct = (val: number) =>
@@ -58,6 +60,14 @@ export default function StackedBudgetBar({ income, totalFixed, totalSavings, tot
             value={remaining < 0 ? `−${formatCLP(Math.abs(remaining))}` : formatCLP(remaining)}
             valueColor={remaining < 0 ? "var(--danger)" : "var(--ink)"}
           />
+          {totalPending > 0 && (
+            <LegendRow
+              color="var(--pending)"
+              label="Disp. c/ pend."
+              value={remainingWithPending < 0 ? `−${formatCLP(Math.abs(remainingWithPending))}` : formatCLP(remainingWithPending)}
+              valueColor={remainingWithPending < 0 ? "var(--danger)" : "var(--pending)"}
+            />
+          )}
         </div>
       </div>
     </div>
