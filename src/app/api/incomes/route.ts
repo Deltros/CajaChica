@@ -8,6 +8,7 @@ const incomeSchema = z.object({
   accountId: z.string(),
   amount: z.number().positive(),
   label: z.string().optional(),
+  source: z.enum(["USER", "BALANCE_ADJUST_TOTAL", "BALANCE_ADJUST_MONTHLY"]).default("USER"),
   categoryIds: z.array(z.string()).optional(),
 });
 

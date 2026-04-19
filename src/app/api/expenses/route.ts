@@ -8,6 +8,7 @@ const expenseSchema = z.object({
   description: z.string().min(1),
   amount: z.number().positive(),
   type: z.enum(["FIXED", "VARIABLE", "SAVING", "PENDING"]).default("VARIABLE"),
+  source: z.enum(["USER", "BALANCE_ADJUST_TOTAL", "BALANCE_ADJUST_MONTHLY"]).default("USER"),
   date: z.string().optional(),
   accountId: z.string().optional(),
   categoryIds: z.array(z.string()).optional(),
@@ -26,7 +27,7 @@ export async function POST(req: Request) {
   });
   if (!period) return NextResponse.json({ error: "Período no encontrado" }, { status: 404 });
 
-  const { periodId, description, amount, type, date, accountId, categoryIds } = parsed.data;
+  const { periodId, description, amount, type, source, date, accountId, categoryIds } = parsed.data;
 
   try {
     const expense = await prisma.expense.create({
@@ -35,6 +36,7 @@ export async function POST(req: Request) {
         description,
         amount,
         type,
+        source,
         date: date ? new Date(date) : new Date(),
         accountId: accountId ?? null,
         categories: categoryIds?.length

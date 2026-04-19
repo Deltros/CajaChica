@@ -52,19 +52,20 @@ export default function BalanceAdjustModal({ account, calculated, totalRemaining
   async function handleSave() {
     const diff = computeDiff();
     if (diff === null || diff === 0) { onClose(); return; }
+    const entrySource = mode === "total" ? "BALANCE_ADJUST_TOTAL" : "BALANCE_ADJUST_MONTHLY";
     const label = description.trim() || (mode === "total" ? "Ajuste de saldo total" : "Ajuste de saldo");
     setLoading(true);
     if (diff > 0) {
       await fetch("/api/incomes", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ periodId, accountId: account.id, amount: diff, label, categoryIds: selectedCategories }),
+        body: JSON.stringify({ periodId, accountId: account.id, amount: diff, label, source: entrySource, categoryIds: selectedCategories }),
       });
     } else {
       await fetch("/api/expenses", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ periodId, description: label, amount: Math.abs(diff), type: "VARIABLE", accountId: account.id, categoryIds: selectedCategories }),
+        body: JSON.stringify({ periodId, description: label, amount: Math.abs(diff), type: "VARIABLE", source: entrySource, accountId: account.id, categoryIds: selectedCategories }),
       });
     }
     setLoading(false);

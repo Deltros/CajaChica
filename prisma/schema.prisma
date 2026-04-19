@@ -59,15 +59,16 @@ model MonthlyPeriod {
 
 // Ingresos del período
 model Income {
-  id        String   @id @default(cuid())
+  id        String      @id @default(cuid())
   periodId  String
   accountId String
   amount    Int
   label     String?
-  date      DateTime @default(now())
+  date      DateTime    @default(now())
+  source    EntrySource @default(USER)
 
-  period     MonthlyPeriod   @relation(fields: [periodId], references: [id], onDelete: Cascade)
-  account    Account         @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  period     MonthlyPeriod    @relation(fields: [periodId], references: [id], onDelete: Cascade)
+  account    Account          @relation(fields: [accountId], references: [id], onDelete: Cascade)
   categories IncomeCategory[]
 }
 
@@ -91,9 +92,10 @@ model Expense {
   type        ExpenseType @default(VARIABLE)
   date        DateTime    @default(now())
   createdAt   DateTime    @default(now())
+  source      EntrySource @default(USER)
 
-  period     MonthlyPeriod      @relation(fields: [periodId], references: [id], onDelete: Cascade)
-  account    Account?           @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  period     MonthlyPeriod     @relation(fields: [periodId], references: [id], onDelete: Cascade)
+  account    Account?          @relation(fields: [accountId], references: [id], onDelete: SetNull)
   categories ExpenseCategory[]
 }
 
@@ -102,6 +104,12 @@ enum ExpenseType {
   VARIABLE
   SAVING
   PENDING
+}
+
+enum EntrySource {
+  USER
+  BALANCE_ADJUST_TOTAL
+  BALANCE_ADJUST_MONTHLY
 }
 
 // Plan de cuotas (ej: bicicleta $120k en 3 cuotas)

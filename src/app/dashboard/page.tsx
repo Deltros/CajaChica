@@ -13,8 +13,8 @@ import StackedBudgetBar from "@/components/StackedBudgetBar";
 import PendingExpenseModal from "@/components/PendingExpenseModal";
 
 type Account = { id: string; name: string; type: string; isActive: boolean; isDefault: boolean };
-type Income = { id: string; accountId: string; amount: number; label: string | null; date: string; account: Account; categories: { category: { id: string; name: string } }[] };
-type Expense = { id: string; description: string; amount: number; type: string; date: string; accountId: string | null; account: { name: string } | null; categories: { category: { id: string; name: string } }[] };
+type Income = { id: string; accountId: string; amount: number; label: string | null; date: string; source: string; account: Account; categories: { category: { id: string; name: string } }[] };
+type Expense = { id: string; description: string; amount: number; type: string; date: string; source: string; accountId: string | null; account: { name: string } | null; categories: { category: { id: string; name: string } }[] };
 type PeriodInstallment = { id: string; planId: string; amount: number; isPaid: boolean; plan: { name: string; totalInstallments: number; paidInstallments: number; totalAmount: number; startYear: number; startMonth: number; accountId: string | null } };
 type Period = { id: string; incomes: Income[]; expenses: Expense[]; installments: PeriodInstallment[] };
 type InstallmentPlan = { id: string; name: string; totalInstallments: number; paidInstallments: number; installmentAmount: number; accountId: string | null };
@@ -110,10 +110,10 @@ export default function DashboardPage() {
       .filter((p) => p.accountId === account.id)
       .reduce((s, p) => s + (p.totalInstallments - p.paidInstallments) * p.installmentAmount, 0);
     const adjExpenses = period?.expenses
-      .filter((e) => e.accountId === account.id && e.description === "Ajuste de saldo total" && e.type !== "PENDING")
+      .filter((e) => e.accountId === account.id && e.source === "BALANCE_ADJUST_TOTAL")
       .reduce((s, e) => s + e.amount, 0) ?? 0;
     const adjIncomes = period?.incomes
-      .filter((i) => i.accountId === account.id && i.label === "Ajuste de saldo total")
+      .filter((i) => i.accountId === account.id && i.source === "BALANCE_ADJUST_TOTAL")
       .reduce((s, i) => s + i.amount, 0) ?? 0;
     const totalRemainingDebt = plansDebt + adjExpenses - adjIncomes;
     return { account, balance: inc - spent - instSpent, pendingSpent, totalRemainingDebt };
