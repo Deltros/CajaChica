@@ -1,6 +1,6 @@
 type AccountRef = { id: string };
-type IncomeEntry = { accountId: string; amount: number; source: string };
-type ExpenseEntry = { accountId: string | null; amount: number; type: string; source: string };
+type IncomeEntry = { accountId: string; amount: number; source: string; date: string | Date };
+type ExpenseEntry = { accountId: string | null; amount: number; type: string; source: string; date: string | Date };
 type InstallmentEntry = { isPaid: boolean; amount: number; plan: { accountId: string | null } };
 type PlanEntry = { accountId: string | null; totalInstallments: number; paidInstallments: number; installmentAmount: number };
 
@@ -17,12 +17,11 @@ export type AccountBalance = {
  *   balance = incomes − expenses − current installments
  *
  * Credit accounts (identified by plansDebt + adjustments > 0):
- *   balance           = −(currentInstallments + netAdjustments)
- *                     = what is owed to the card THIS month (excl. future installments).
- *   totalRemainingDebt = plansDebt + netAdjustments
- *                      = total outstanding across all months.
+ *   balance           = −(currentInstallments + netAdjustments + postAdjUserSpent)
+ *   totalRemainingDebt = plansDebt + netAdjustments + postAdjUserSpent
  *
- * Invariant: totalRemainingDebt − |balance| = future installments ≥ 0.
+ * postAdjUserSpent: USER expenses recorded AFTER the last BALANCE_ADJUST_TOTAL entry.
+ * Earlier USER expenses are already captured inside the adjustment amount itself.
  */
 export function computeAccountBalance(
   account: AccountRef,
@@ -62,10 +61,31 @@ export function computeAccountBalance(
   const totalRemainingDebt = plansDebt + adjExpenses - adjIncomes;
 
   if (totalRemainingDebt > 0) {
+    // Find the date of the most recent BALANCE_ADJUST_TOTAL entry for this account.
+    // USER expenses entered AFTER that date are incremental debt not yet captured
+    // by any adjustment, so they must be added on top.
+    const adjEntryDates: Date[] = [
+      ...expenses.filter((e) => e.accountId === account.id && e.source === "BALANCE_ADJUST_TOTAL"),
+      ...incomes.filter((i) => i.accountId === account.id && i.source === "BALANCE_ADJUST_TOTAL"),
+    ].map((e) => new Date(e.date));
+
+    const lastAdjDate = adjEntryDates.length > 0
+      ? adjEntryDates.reduce((a, b) => (b > a ? b : a))
+      : null;
+
+    const postAdjUserSpent = expenses
+      .filter((e) =>
+        e.accountId === account.id &&
+        e.type !== "PENDING" &&
+        e.source === "USER" &&
+        (lastAdjDate === null || new Date(e.date) > lastAdjDate)
+      )
+      .reduce((s, e) => s + e.amount, 0);
+
     return {
-      balance: -(instSpent + adjExpenses - adjIncomes),
+      balance: -(instSpent + adjExpenses - adjIncomes + postAdjUserSpent),
       pendingSpent,
-      totalRemainingDebt,
+      totalRemainingDebt: totalRemainingDebt + postAdjUserSpent,
     };
   }
 
