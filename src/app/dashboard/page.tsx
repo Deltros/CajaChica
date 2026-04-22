@@ -291,7 +291,7 @@ export default function DashboardPage() {
                             Con pendientes
                           </span>
                           <span style={{ ...MONO, fontSize: 12, color: "var(--pending)", fontWeight: 500 }}>
-                            {neg(totalNegative - accountBalances.reduce((s, b) => s + b.pendingSpent, 0))}
+                            {neg(accountBalances.reduce((s, b) => s + Math.min(0, b.balance - b.pendingSpent), 0))}
                           </span>
                         </div>
                       )}
