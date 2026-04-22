@@ -94,14 +94,10 @@ export default function DashboardPage() {
   const pendingInstallments = period?.installments.filter((i) => !i.isPaid) ?? [];
   const totalPendingInstallments = pendingInstallments.reduce((s, i) => s + i.amount, 0);
   const orphanedPlans = allPlans.filter((p) => !pendingInstallments.some((pi) => pi.planId === p.id));
-  const remaining = totalIncome - totalFixed - totalSavings - totalVariable - totalPendingInstallments;
-  const daysLeft = daysLeftInMonth();
-  const dailyBudget = daysLeft > 0 ? Math.floor(remaining / daysLeft) : 0;
-
   const pendingExpenses = period?.expenses.filter((e) => e.type === "PENDING") ?? [];
   const totalPending = pendingExpenses.reduce((s, e) => s + e.amount, 0);
-  const dailyBudgetWithPending = daysLeft > 0 ? Math.floor((remaining - totalPending) / daysLeft) : 0;
 
+  // Account balances are the source of truth — remaining derives from them.
   const accountBalances = activeAccounts.map((account) => {
     const { balance, pendingSpent, totalRemainingDebt } = computeAccountBalance(
       account,
@@ -114,6 +110,14 @@ export default function DashboardPage() {
   });
   const totalPositive = accountBalances.filter((b) => b.balance > 0).reduce((s, b) => s + b.balance, 0);
   const totalNegative = accountBalances.filter((b) => b.balance < 0).reduce((s, b) => s + b.balance, 0);
+
+  const remaining = totalPositive + totalNegative;
+  const daysLeft = daysLeftInMonth();
+  const dailyBudget = daysLeft > 0 ? Math.floor(remaining / daysLeft) : 0;
+  const dailyBudgetWithPending = daysLeft > 0 ? Math.floor((remaining - totalPending) / daysLeft) : 0;
+
+  // Variable segment for the budget bar: what income covers beyond installments and disponible.
+  const effectiveTotalVariable = Math.max(0, totalIncome - totalFixed - totalSavings - totalPendingInstallments - remaining);
 
   function prevMonth() {
     if (month === 1) { setMonth(12); setYear((y) => y - 1); }
@@ -206,7 +210,7 @@ export default function DashboardPage() {
                   totalFixed={totalFixed}
                   totalSavings={totalSavings}
                   totalCuotas={totalPendingInstallments}
-                  totalVariable={totalVariable}
+                  totalVariable={effectiveTotalVariable}
                 />
               </div>
             </section>
@@ -217,7 +221,7 @@ export default function DashboardPage() {
               totalFixed={totalFixed}
               totalSavings={totalSavings}
               totalCuotas={totalPendingInstallments}
-              totalVariable={totalVariable}
+              totalVariable={effectiveTotalVariable}
               totalPending={totalPending}
             />
 

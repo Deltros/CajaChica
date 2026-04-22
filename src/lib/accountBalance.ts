@@ -17,14 +17,12 @@ export type AccountBalance = {
  *   balance = incomes − expenses − current installments
  *
  * Credit accounts (identified by plansDebt + adjustments > 0):
- *   creditVarExpenses = tracked purchases on the card (excludes BALANCE_ADJUST_TOTAL and PENDING).
- *   balance           = −(currentInstallments + adjustments + creditVarExpenses)
- *                     = what is owed to the card THIS month.
- *   totalRemainingDebt = plansDebt + adjustments + creditVarExpenses
+ *   balance           = −(currentInstallments + netAdjustments)
+ *                     = what is owed to the card THIS month (excl. future installments).
+ *   totalRemainingDebt = plansDebt + netAdjustments
  *                      = total outstanding across all months.
  *
  * Invariant: totalRemainingDebt − |balance| = future installments ≥ 0.
- * Consistency: net account balances sum equals budget "remaining" (Disponible).
  */
 export function computeAccountBalance(
   account: AccountRef,
@@ -61,19 +59,14 @@ export function computeAccountBalance(
     .filter((i) => i.accountId === account.id && i.source === "BALANCE_ADJUST_TOTAL")
     .reduce((s, i) => s + i.amount, 0);
 
-  const partialDebt = plansDebt + adjExpenses - adjIncomes;
-  const isCreditAccount = partialDebt > 0;
+  const totalRemainingDebt = plansDebt + adjExpenses - adjIncomes;
 
-  if (isCreditAccount) {
-    // Tracked purchases on the card (not adjustments, not pending, not installments).
-    // Installments come from the installments array, not expenses, so there is no overlap.
-    const creditVarExpenses = expenses
-      .filter((e) => e.accountId === account.id && e.type !== "PENDING" && e.source !== "BALANCE_ADJUST_TOTAL")
-      .reduce((s, e) => s + e.amount, 0);
-
-    const totalRemainingDebt = partialDebt + creditVarExpenses;
-    const balance = -(instSpent + adjExpenses - adjIncomes + creditVarExpenses);
-    return { balance, pendingSpent, totalRemainingDebt };
+  if (totalRemainingDebt > 0) {
+    return {
+      balance: -(instSpent + adjExpenses - adjIncomes),
+      pendingSpent,
+      totalRemainingDebt,
+    };
   }
 
   return {
