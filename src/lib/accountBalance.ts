@@ -10,6 +10,20 @@ export type AccountBalance = {
   totalRemainingDebt: number;
 };
 
+/**
+ * Computes the effective balance for an account in a given period.
+ *
+ * Debit accounts:
+ *   balance = incomes − expenses − current installments
+ *
+ * Credit accounts (identified by plansDebt + adjustments > 0):
+ *   balance           = −(currentInstallments + netAdjustments)
+ *                     = what is owed to the card THIS month (excl. future installments).
+ *   totalRemainingDebt = plansDebt + netAdjustments
+ *                      = total outstanding across all months.
+ *
+ * Invariant: totalRemainingDebt − |balance| = future installments ≥ 0.
+ */
 export function computeAccountBalance(
   account: AccountRef,
   incomes: IncomeEntry[],
@@ -47,9 +61,17 @@ export function computeAccountBalance(
 
   const totalRemainingDebt = plansDebt + adjExpenses - adjIncomes;
 
+  if (totalRemainingDebt > 0) {
+    return {
+      balance: -(instSpent + adjExpenses - adjIncomes),
+      pendingSpent,
+      totalRemainingDebt,
+    };
+  }
+
   return {
     balance: inc - spent - instSpent,
     pendingSpent,
-    totalRemainingDebt: Math.max(0, totalRemainingDebt),
+    totalRemainingDebt: 0,
   };
 }
