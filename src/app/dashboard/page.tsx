@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { formatCLP, daysLeftInMonth } from "@/lib/format";
+import { computeAccountBalance } from "@/lib/accountBalance";
 import ExpenseModal, { Modal, type EditExpense } from "@/components/ExpenseModal";
 import type { EditIncome } from "@/components/IncomeModal";
 import IncomeModal from "@/components/IncomeModal";
@@ -102,21 +103,14 @@ export default function DashboardPage() {
   const dailyBudgetWithPending = daysLeft > 0 ? Math.floor((remaining - totalPending) / daysLeft) : 0;
 
   const accountBalances = activeAccounts.map((account) => {
-    const inc = period?.incomes.filter((i) => i.accountId === account.id).reduce((s, i) => s + i.amount, 0) ?? 0;
-    const spent = period?.expenses.filter((e) => e.accountId === account.id && e.type !== "PENDING").reduce((s, e) => s + e.amount, 0) ?? 0;
-    const instSpent = period?.installments.filter((i) => !i.isPaid && i.plan.accountId === account.id).reduce((s, i) => s + i.amount, 0) ?? 0;
-    const pendingSpent = pendingExpenses.filter((e) => e.accountId === account.id).reduce((s, e) => s + e.amount, 0);
-    const plansDebt = allPlans
-      .filter((p) => p.accountId === account.id)
-      .reduce((s, p) => s + (p.totalInstallments - p.paidInstallments) * p.installmentAmount, 0);
-    const adjExpenses = period?.expenses
-      .filter((e) => e.accountId === account.id && e.source === "BALANCE_ADJUST_TOTAL")
-      .reduce((s, e) => s + e.amount, 0) ?? 0;
-    const adjIncomes = period?.incomes
-      .filter((i) => i.accountId === account.id && i.source === "BALANCE_ADJUST_TOTAL")
-      .reduce((s, i) => s + i.amount, 0) ?? 0;
-    const totalRemainingDebt = plansDebt + adjExpenses - adjIncomes;
-    return { account, balance: inc - spent - instSpent, pendingSpent, totalRemainingDebt };
+    const { balance, pendingSpent, totalRemainingDebt } = computeAccountBalance(
+      account,
+      period?.incomes ?? [],
+      period?.expenses ?? [],
+      period?.installments ?? [],
+      allPlans,
+    );
+    return { account, balance, pendingSpent, totalRemainingDebt };
   });
   const totalPositive = accountBalances.filter((b) => b.balance > 0).reduce((s, b) => s + b.balance, 0);
   const totalNegative = accountBalances.filter((b) => b.balance < 0).reduce((s, b) => s + b.balance, 0);
