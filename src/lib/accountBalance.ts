@@ -13,11 +13,18 @@ export type AccountBalance = {
 /**
  * Computes the effective balance for an account in a given period.
  *
- * - Debit accounts: balance = incomes − expenses − current installments.
- * - Credit accounts (totalRemainingDebt > 0): balance = this month's payment only
- *   = current installments + net BALANCE_ADJUST_TOTAL entries.
- *   Future installments are excluded here but included in totalRemainingDebt,
- *   preserving the invariant: totalRemainingDebt ≥ |balance| for credit accounts.
+ * Debit accounts:
+ *   balance = incomes − expenses − current installments
+ *
+ * Credit accounts (identified by plansDebt + adjustments > 0):
+ *   creditVarExpenses = tracked purchases on the card (excludes BALANCE_ADJUST_TOTAL and PENDING).
+ *   balance           = −(currentInstallments + adjustments + creditVarExpenses)
+ *                     = what is owed to the card THIS month.
+ *   totalRemainingDebt = plansDebt + adjustments + creditVarExpenses
+ *                      = total outstanding across all months.
+ *
+ * Invariant: totalRemainingDebt − |balance| = future installments ≥ 0.
+ * Consistency: net account balances sum equals budget "remaining" (Disponible).
  */
 export function computeAccountBalance(
   account: AccountRef,
@@ -54,11 +61,24 @@ export function computeAccountBalance(
     .filter((i) => i.accountId === account.id && i.source === "BALANCE_ADJUST_TOTAL")
     .reduce((s, i) => s + i.amount, 0);
 
-  const totalRemainingDebt = plansDebt + adjExpenses - adjIncomes;
+  const partialDebt = plansDebt + adjExpenses - adjIncomes;
+  const isCreditAccount = partialDebt > 0;
 
-  const balance = totalRemainingDebt > 0
-    ? -(instSpent + adjExpenses - adjIncomes)
-    : inc - spent - instSpent;
+  if (isCreditAccount) {
+    // Tracked purchases on the card (not adjustments, not pending, not installments).
+    // Installments come from the installments array, not expenses, so there is no overlap.
+    const creditVarExpenses = expenses
+      .filter((e) => e.accountId === account.id && e.type !== "PENDING" && e.source !== "BALANCE_ADJUST_TOTAL")
+      .reduce((s, e) => s + e.amount, 0);
 
-  return { balance, pendingSpent, totalRemainingDebt };
+    const totalRemainingDebt = partialDebt + creditVarExpenses;
+    const balance = -(instSpent + adjExpenses - adjIncomes + creditVarExpenses);
+    return { balance, pendingSpent, totalRemainingDebt };
+  }
+
+  return {
+    balance: inc - spent - instSpent,
+    pendingSpent,
+    totalRemainingDebt: 0,
+  };
 }
