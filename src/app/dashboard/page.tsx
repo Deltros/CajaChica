@@ -13,7 +13,7 @@ import DailyDonut from "@/components/DailyDonut";
 import StackedBudgetBar from "@/components/StackedBudgetBar";
 import PendingExpenseModal from "@/components/PendingExpenseModal";
 
-type Account = { id: string; name: string; type: string; isActive: boolean; isDefault: boolean };
+type Account = { id: string; name: string; type: string; isCreditCard: boolean; isActive: boolean; isDefault: boolean };
 type Income = { id: string; accountId: string; amount: number; label: string | null; date: string; source: string; account: Account; categories: { category: { id: string; name: string } }[] };
 type Expense = { id: string; description: string; amount: number; type: string; date: string; source: string; accountId: string | null; account: { name: string } | null; categories: { category: { id: string; name: string } }[] };
 type PeriodInstallment = { id: string; planId: string; amount: number; isPaid: boolean; plan: { name: string; totalInstallments: number; paidInstallments: number; totalAmount: number; startYear: number; startMonth: number; accountId: string | null } };
@@ -42,10 +42,11 @@ export default function DashboardPage() {
   const [showIncomeModal, setShowIncomeModal] = useState(false);
   const [selectedInstallment, setSelectedInstallment] = useState<PeriodInstallment | null>(null);
   const [confirmDeleteInstallment, setConfirmDeleteInstallment] = useState(false);
-  const [balanceEdit, setBalanceEdit] = useState<{ account: Account; calculated: number; totalRemainingDebt: number } | null>(null);
+  const [balanceEdit, setBalanceEdit] = useState<{ account: Account; calculated: number; totalRemainingDebt: number; isCreditCard: boolean } | null>(null);
   const [showIngresos, setShowIngresos] = useState(true);
   const [showSaldo, setShowSaldo] = useState(true);
   const [showGastos, setShowGastos] = useState(true);
+  const [showZeroAccounts, setShowZeroAccounts] = useState(false);
   const [selectedPending, setSelectedPending] = useState<Expense | null>(null);
   const [editExpense, setEditExpense] = useState<EditExpense | null>(null);
   const [editIncome, setEditIncome] = useState<EditIncome | null>(null);
@@ -146,6 +147,7 @@ export default function DashboardPage() {
         <header className="dash-header" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
           <HamburgerMenu />
           <Logo size={34} showTagline={false} />
+          <div style={{ width: 40, flexShrink: 0 }} />
         </header>
 
         {/* ── Month selector ── */}
@@ -295,45 +297,69 @@ export default function DashboardPage() {
                           </span>
                         </div>
                       )}
-                      <ul style={{ margin: 0, padding: 0, listStyle: "none" }}>
-                        {accountBalances.map(({ account, balance, pendingSpent, totalRemainingDebt }, idx) => (
-                          <li
-                            key={account.id}
-                            onClick={() => setBalanceEdit({ account, calculated: balance, totalRemainingDebt })}
-                            style={{
-                              display: "flex", alignItems: "center", justifyContent: "space-between",
-                              padding: "14px 18px",
-                              borderTop: idx === 0 ? "none" : "1px solid var(--line-soft)",
-                              fontSize: 14, cursor: "pointer",
-                            }}
-                          >
-                            <span style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                              <span style={{ width: 10, height: 10, borderRadius: 3, background: DOT_COLORS[idx % DOT_COLORS.length], flexShrink: 0, display: "block" }} />
-                              {account.name}
-                            </span>
-                            <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 2 }}>
-                              <span style={{ ...MONO, fontWeight: 500, fontSize: 13.5, color: balance > 0 ? "var(--accent)" : balance < 0 ? "var(--danger)" : "var(--ink-4)" }}>
-                                {balance < 0 ? neg(balance) : formatCLP(balance)}
-                              </span>
-                              {pendingSpent > 0 && (
-                                <span style={{ ...MONO, fontSize: 11, color: "var(--pending)" }}>
-                                  ({balance - pendingSpent < 0 ? neg(balance - pendingSpent) : formatCLP(balance - pendingSpent)} c/ pend.)
-                                </span>
-                              )}
-                              {totalRemainingDebt > 0 && (
-                                <span style={{ ...MONO, fontSize: 11, color: "#C2883D" }}>
-                                  Total cuotas: {neg(totalRemainingDebt)}
-                                </span>
-                              )}
-                              {totalRemainingDebt > 0 && pendingSpent > 0 && (
-                                <span style={{ ...MONO, fontSize: 11, color: "var(--pending)" }}>
-                                  Total c/ pend.: {neg(totalRemainingDebt + pendingSpent)}
-                                </span>
-                              )}
-                            </div>
-                          </li>
-                        ))}
-                      </ul>
+                      {(() => {
+                        const nonZero = accountBalances.filter((b) => b.balance !== 0);
+                        const zero = accountBalances.filter((b) => b.balance === 0);
+                        const visible = showZeroAccounts ? accountBalances : nonZero;
+                        return (
+                          <>
+                            <ul style={{ margin: 0, padding: 0, listStyle: "none" }}>
+                              {visible.map(({ account, balance, pendingSpent, totalRemainingDebt }, idx) => (
+                                <li
+                                  key={account.id}
+                                  onClick={() => setBalanceEdit({ account, calculated: balance, totalRemainingDebt, isCreditCard: account.isCreditCard })}
+                                  style={{
+                                    display: "flex", alignItems: "center", justifyContent: "space-between",
+                                    padding: "14px 18px",
+                                    borderTop: idx === 0 ? "none" : "1px solid var(--line-soft)",
+                                    fontSize: 14, cursor: "pointer",
+                                  }}
+                                >
+                                  <span style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                                    <span style={{ width: 10, height: 10, borderRadius: 3, background: DOT_COLORS[accountBalances.findIndex((b) => b.account.id === account.id) % DOT_COLORS.length], flexShrink: 0, display: "block" }} />
+                                    {account.name}
+                                  </span>
+                                  <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 2 }}>
+                                    <span style={{ ...MONO, fontWeight: 500, fontSize: 13.5, color: balance > 0 ? "var(--accent)" : balance < 0 ? "var(--danger)" : "var(--ink-4)" }}>
+                                      {balance < 0 ? neg(balance) : formatCLP(balance)}
+                                    </span>
+                                    {pendingSpent > 0 && (
+                                      <span style={{ ...MONO, fontSize: 11, color: "var(--pending)" }}>
+                                        ({balance - pendingSpent < 0 ? neg(balance - pendingSpent) : formatCLP(balance - pendingSpent)} c/ pend.)
+                                      </span>
+                                    )}
+                                    {totalRemainingDebt > 0 && (
+                                      <span style={{ ...MONO, fontSize: 11, color: "#C2883D" }}>
+                                        Total cuotas: {neg(totalRemainingDebt)}
+                                      </span>
+                                    )}
+                                    {totalRemainingDebt > 0 && pendingSpent > 0 && (
+                                      <span style={{ ...MONO, fontSize: 11, color: "var(--pending)" }}>
+                                        Total c/ pend.: {neg(totalRemainingDebt + pendingSpent)}
+                                      </span>
+                                    )}
+                                  </div>
+                                </li>
+                              ))}
+                            </ul>
+                            {zero.length > 0 && (
+                              <button
+                                onClick={() => setShowZeroAccounts((v) => !v)}
+                                style={{
+                                  width: "100%", padding: "10px 18px",
+                                  borderTop: "1px solid var(--line-soft)", borderBottom: "none",
+                                  borderLeft: "none", borderRight: "none",
+                                  background: "transparent", cursor: "pointer",
+                                  fontSize: 12, color: "var(--ink-4)", fontFamily: "inherit",
+                                  textAlign: "center",
+                                }}
+                              >
+                                {showZeroAccounts ? "Ocultar cuentas en $0" : `Ver ${zero.length} cuenta${zero.length > 1 ? "s" : ""} en $0`}
+                              </button>
+                            )}
+                          </>
+                        );
+                      })()}
                     </div>
                   )}
                 </div>
@@ -566,6 +592,7 @@ export default function DashboardPage() {
           account={balanceEdit.account}
           calculated={balanceEdit.calculated}
           totalRemainingDebt={balanceEdit.totalRemainingDebt}
+          isCreditCard={balanceEdit.isCreditCard}
           periodId={period.id}
           onClose={() => setBalanceEdit(null)}
           onSaved={fetchPeriod}

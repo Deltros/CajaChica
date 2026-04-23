@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
-type Account = { id: string; name: string; type: string; isActive: boolean; isDefault: boolean };
+type Account = { id: string; name: string; type: string; isCreditCard: boolean; isActive: boolean; isDefault: boolean };
 
 const SERIF: React.CSSProperties = { fontFamily: "var(--font-instrument-serif), serif" };
 
@@ -42,6 +42,7 @@ export default function CuentasPage() {
   const [showNewForm, setShowNewForm] = useState(false);
   const [newName, setNewName] = useState("");
   const [newType, setNewType] = useState<"BANK" | "CASH">("BANK");
+  const [newIsCreditCard, setNewIsCreditCard] = useState(false);
   const [creating, setCreating] = useState(false);
 
   async function fetchAccounts() {
@@ -73,6 +74,15 @@ export default function CuentasPage() {
     fetchAccounts();
   }
 
+  async function toggleCreditCard(id: string, isCreditCard: boolean) {
+    await fetch("/api/accounts", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, isCreditCard: !isCreditCard }),
+    });
+    fetchAccounts();
+  }
+
   async function setDefault(id: string) {
     await fetch("/api/accounts", {
       method: "PATCH",
@@ -88,10 +98,11 @@ export default function CuentasPage() {
     await fetch("/api/accounts", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: newName.trim(), type: newType }),
+      body: JSON.stringify({ name: newName.trim(), type: newType, isCreditCard: newIsCreditCard }),
     });
     setNewName("");
     setNewType("BANK");
+    setNewIsCreditCard(false);
     setShowNewForm(false);
     setCreating(false);
     fetchAccounts();
@@ -163,6 +174,11 @@ export default function CuentasPage() {
                           <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 99, background: "var(--bg-soft)", border: "1px solid var(--line)", color: "var(--ink-3)" }}>
                             {account.type === "BANK" ? "Banco" : "Efectivo"}
                           </span>
+                          {account.isCreditCard && (
+                            <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 99, background: "var(--danger-soft)", border: "1px solid var(--danger-soft)", color: "var(--danger)" }}>
+                              Crédito
+                            </span>
+                          )}
                           <button
                             onClick={() => { setEditingId(account.id); setEditingName(account.name); }}
                             style={{ fontSize: 12, color: "var(--accent)", background: "none", border: "none", cursor: "pointer", fontWeight: 500, padding: 0 }}
@@ -177,12 +193,27 @@ export default function CuentasPage() {
                     </div>
 
                     {/* Right */}
-                    <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
-                      <Toggle
-                        on={account.isActive}
-                        onToggle={() => toggleActive(account.id, account.isActive)}
-                        label={`${account.name} activa`}
-                      />
+                    <div style={{ display: "flex", alignItems: "center", gap: 14, flexShrink: 0 }}>
+                      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
+                        {account.type === "BANK" ? (
+                          <Toggle
+                            on={account.isCreditCard}
+                            onToggle={() => toggleCreditCard(account.id, account.isCreditCard)}
+                            label={`${account.name} crédito`}
+                          />
+                        ) : (
+                          <div style={{ width: 36, height: 20, borderRadius: 99, background: "var(--line)", opacity: 0.4, cursor: "not-allowed" }} title="El efectivo no puede ser tarjeta de crédito" />
+                        )}
+                        <span style={{ fontSize: 10, color: "var(--ink-4)", whiteSpace: "nowrap" }}>Crédito</span>
+                      </div>
+                      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
+                        <Toggle
+                          on={account.isActive}
+                          onToggle={() => toggleActive(account.id, account.isActive)}
+                          label={`${account.name} activa`}
+                        />
+                        <span style={{ fontSize: 10, color: "var(--ink-4)", whiteSpace: "nowrap" }}>Activa</span>
+                      </div>
                       {account.isDefault ? (
                         <span style={{ fontSize: 11, padding: "4px 10px", borderRadius: 99, background: "var(--accent)", color: "var(--bg)", fontWeight: 500, whiteSpace: "nowrap" }}>
                           Predeterminada
@@ -212,25 +243,38 @@ export default function CuentasPage() {
                     onKeyDown={(e) => { if (e.key === "Enter") createAccount(); if (e.key === "Escape") setShowNewForm(false); }}
                     style={{ width: "100%", fontFamily: "inherit", fontSize: 15, background: "var(--bg)", color: "var(--ink)", border: "1px solid var(--line)", borderRadius: 14, padding: "12px 14px", outline: "none", boxSizing: "border-box" }}
                   />
-                  <div style={{ display: "flex", border: "1px solid var(--line)", borderRadius: 14, padding: 3, gap: 3, background: "var(--bg)" }}>
-                    {(["BANK", "CASH"] as const).map((t) => (
-                      <button
-                        key={t}
-                        type="button"
-                        onClick={() => setNewType(t)}
-                        style={{
-                          flex: 1, padding: "9px 8px", border: "none", borderRadius: 11,
-                          fontFamily: "inherit", fontSize: 13, cursor: "pointer",
-                          background: newType === t ? "var(--card)" : "transparent",
-                          color: newType === t ? "var(--ink)" : "var(--ink-3)",
-                          fontWeight: newType === t ? 500 : 400,
-                          boxShadow: newType === t ? "0 1px 2px rgba(0,0,0,0.05)" : "none",
-                        }}
-                      >
-                        {t === "BANK" ? "Banco" : "Efectivo"}
-                      </button>
-                    ))}
+                  <div>
+                    <p style={{ fontSize: 11, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--ink-3)", margin: "0 0 6px" }}>Tipo de cuenta</p>
+                    <div style={{ display: "flex", border: "1px solid var(--line)", borderRadius: 14, padding: 3, gap: 3, background: "var(--bg)" }}>
+                      {(["BANK", "CASH"] as const).map((t) => (
+                        <button
+                          key={t}
+                          type="button"
+                          onClick={() => { setNewType(t); if (t === "CASH") setNewIsCreditCard(false); }}
+                          style={{
+                            flex: 1, padding: "9px 8px", border: "none", borderRadius: 11,
+                            fontFamily: "inherit", fontSize: 13, cursor: "pointer",
+                            background: newType === t ? "var(--card)" : "transparent",
+                            color: newType === t ? "var(--ink)" : "var(--ink-3)",
+                            fontWeight: newType === t ? 500 : 400,
+                            boxShadow: newType === t ? "0 1px 2px rgba(0,0,0,0.05)" : "none",
+                          }}
+                        >
+                          {t === "BANK" ? "Banco / Tarjeta" : "Efectivo"}
+                        </button>
+                      ))}
+                    </div>
                   </div>
+                  {newType === "BANK" ? (
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 14px", borderRadius: 14, border: "1px solid var(--line)", background: "var(--bg)" }}>
+                      <span style={{ fontSize: 13, color: "var(--ink-2)" }}>Tarjeta de crédito</span>
+                      <Toggle on={newIsCreditCard} onToggle={() => setNewIsCreditCard((v) => !v)} label="Es tarjeta de crédito" />
+                    </div>
+                  ) : (
+                    <p style={{ fontSize: 12, color: "var(--ink-4)", margin: 0, padding: "0 2px" }}>
+                      El efectivo no puede ser tarjeta de crédito.
+                    </p>
+                  )}
                   <div style={{ display: "flex", gap: 10 }}>
                     <button
                       onClick={() => setShowNewForm(false)}

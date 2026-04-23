@@ -4,7 +4,7 @@ import { useState } from "react";
 import CategoryPicker from "./CategoryPicker";
 import NumericInput from "./NumericInput";
 
-type Account = { id: string; name: string };
+type Account = { id: string; name: string; isCreditCard: boolean };
 
 export type EditExpense = {
   id: string;
@@ -62,6 +62,7 @@ export default function ExpenseModal({ periodId, accounts, defaultAccountId, edi
   const perInstallment = isInstallment && installmentsNum > 0
     ? Math.round(amountNum / installmentsNum)
     : amountNum;
+  const selectedIsCreditCard = accounts.find((a) => a.id === accountId)?.isCreditCard ?? false;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -187,16 +188,16 @@ export default function ExpenseModal({ periodId, accounts, defaultAccountId, edi
               onChange={(e) => setAccountId(e.target.value)}
               style={{ ...FIELD_INPUT, appearance: "auto" }}
             >
-              <option value="">Sin cuenta</option>
-              {accounts.map((a) => (
+              {!isInstallment && <option value="">Sin cuenta</option>}
+              {(isInstallment ? accounts.filter((a) => a.isCreditCard) : accounts).map((a) => (
                 <option key={a.id} value={a.id}>{a.name}</option>
               ))}
             </select>
           </div>
         )}
 
-        {/* Toggle cuotas — oculto para gastos pendientes y en modo edición */}
-        {!isEditing && type !== "PENDING" && (
+        {/* Toggle cuotas — solo visible con cuenta de crédito seleccionada */}
+        {!isEditing && type !== "PENDING" && selectedIsCreditCard && (
           <div style={{ marginBottom: 14 }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 0", fontSize: 14, color: "var(--ink-2)" }}>
               <span>Pagar en cuotas</span>

@@ -5,7 +5,7 @@ import { Modal } from "./ExpenseModal";
 import CategoryPicker from "./CategoryPicker";
 import NumericInput from "./NumericInput";
 
-type Account = { id: string; name: string; type: string };
+type Account = { id: string; name: string; type: string; isCreditCard: boolean };
 
 export type EditIncome = {
   id: string;
@@ -36,33 +36,15 @@ const FIELD_INPUT: React.CSSProperties = {
 
 export default function IncomeModal({ periodId, accounts, editIncome, onClose, onSaved }: Props) {
   const isEditing = !!editIncome;
-  const [accountId, setAccountId] = useState(editIncome?.accountId ?? accounts[0]?.id ?? "");
+  const debitAccounts = accounts.filter((a) => !a.isCreditCard);
+  const [accountId, setAccountId] = useState(editIncome?.accountId ?? debitAccounts[0]?.id ?? "");
   const [amount, setAmount] = useState(editIncome ? String(editIncome.amount) : "");
   const [label, setLabel] = useState(editIncome?.label ?? "");
-  const [newAccountName, setNewAccountName] = useState("");
-  const [newAccountType, setNewAccountType] = useState<"BANK" | "CASH">("BANK");
-  const [showNewAccount, setShowNewAccount] = useState(false);
   const [selectedCategories, setSelectedCategories] = useState<string[]>(
     editIncome?.categories.map((c) => c.category.id) ?? []
   );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-
-  async function createAccount() {
-    if (!newAccountName.trim()) return;
-    const res = await fetch("/api/accounts", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: newAccountName, type: newAccountType }),
-    });
-    if (res.ok) {
-      const acc = await res.json();
-      accounts.push(acc);
-      setAccountId(acc.id);
-      setShowNewAccount(false);
-      setNewAccountName("");
-    }
-  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -96,13 +78,13 @@ export default function IncomeModal({ periodId, accounts, editIncome, onClose, o
         {/* Cuenta */}
         <div style={{ marginBottom: 14 }}>
           <label style={FIELD_LABEL}>Cuenta</label>
-          {accounts.length > 0 ? (
+          {debitAccounts.length > 0 ? (
             <select
               value={accountId}
               onChange={(e) => setAccountId(e.target.value)}
               style={{ ...FIELD_INPUT, appearance: "auto" }}
             >
-              {accounts.map((a) => (
+              {debitAccounts.map((a) => (
                 <option key={a.id} value={a.id}>
                   {a.name} · {a.type === "BANK" ? "banco" : "efectivo"}
                 </option>
@@ -110,62 +92,10 @@ export default function IncomeModal({ periodId, accounts, editIncome, onClose, o
             </select>
           ) : (
             <p style={{ fontSize: 13, color: "var(--ink-4)", margin: 0 }}>
-              No hay cuentas. Crea una abajo.
+              No hay cuentas de débito disponibles.
             </p>
           )}
-          <button
-            type="button"
-            onClick={() => setShowNewAccount((v) => !v)}
-            style={{ display: "inline-block", marginTop: 8, fontSize: 12, color: "var(--accent)", background: "none", border: "none", cursor: "pointer", fontWeight: 500, padding: 0 }}
-          >
-            + Nueva cuenta
-          </button>
         </div>
-
-        {/* Nueva cuenta inline panel */}
-        {showNewAccount && (
-          <div style={{ marginBottom: 14, background: "var(--bg-soft)", border: "1px solid var(--line)", borderRadius: 14, padding: "14px 16px", display: "flex", flexDirection: "column", gap: 10 }}>
-            <div>
-              <label style={FIELD_LABEL}>Nombre de la cuenta</label>
-              <input
-                type="text"
-                placeholder="ej: Santander Débito"
-                value={newAccountName}
-                onChange={(e) => setNewAccountName(e.target.value)}
-                style={FIELD_INPUT}
-              />
-            </div>
-            <div style={{
-              display: "flex", border: "1px solid var(--line)", borderRadius: 14,
-              padding: 3, gap: 3, background: "var(--bg)",
-            }}>
-              {(["BANK", "CASH"] as const).map((t) => (
-                <button
-                  key={t}
-                  type="button"
-                  onClick={() => setNewAccountType(t)}
-                  style={{
-                    flex: 1, padding: "9px 8px", border: "none", borderRadius: 11,
-                    fontFamily: "inherit", fontSize: 13, cursor: "pointer",
-                    background: newAccountType === t ? "var(--card)" : "transparent",
-                    color: newAccountType === t ? "var(--ink)" : "var(--ink-3)",
-                    fontWeight: newAccountType === t ? 500 : 400,
-                    boxShadow: newAccountType === t ? "0 1px 2px rgba(0,0,0,0.05)" : "none",
-                  }}
-                >
-                  {t === "BANK" ? "Banco" : "Efectivo"}
-                </button>
-              ))}
-            </div>
-            <button
-              type="button"
-              onClick={createAccount}
-              style={{ padding: "10px 14px", borderRadius: 14, border: "none", background: "var(--ink)", color: "var(--bg)", cursor: "pointer", fontFamily: "inherit", fontSize: 13, fontWeight: 500 }}
-            >
-              Crear cuenta
-            </button>
-          </div>
-        )}
 
         {/* Monto */}
         <div style={{ marginBottom: 14 }}>

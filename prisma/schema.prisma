@@ -26,6 +26,7 @@ model Account {
   userId         String
   name           String
   type           AccountType @default(BANK)
+  isCreditCard   Boolean     @default(false)
   isActive       Boolean     @default(true)
   isDefault      Boolean     @default(false)
   createdAt      DateTime    @default(now())

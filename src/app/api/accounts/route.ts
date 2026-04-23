@@ -6,6 +6,7 @@ import { z } from "zod";
 const accountSchema = z.object({
   name: z.string().min(1),
   type: z.enum(["BANK", "CASH"]).default("BANK"),
+  isCreditCard: z.boolean().default(false),
 });
 
 export async function GET() {
@@ -45,6 +46,7 @@ export async function PATCH(req: Request) {
     name: z.string().min(1).optional(),
     isActive: z.boolean().optional(),
     isDefault: z.boolean().optional(),
+    isCreditCard: z.boolean().optional(),
   }).safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: "Datos inválidos" }, { status: 400 });
 

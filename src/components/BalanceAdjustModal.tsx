@@ -17,13 +17,14 @@ type Props = {
   account: { id: string; name: string };
   calculated: number;
   totalRemainingDebt: number;
+  isCreditCard: boolean;
   periodId: string;
   onClose: () => void;
   onSaved: () => void;
 };
 
-export default function BalanceAdjustModal({ account, calculated, totalRemainingDebt, periodId, onClose, onSaved }: Props) {
-  const isCreditAccount = totalRemainingDebt > 0;
+export default function BalanceAdjustModal({ account, calculated, totalRemainingDebt, isCreditCard, periodId, onClose, onSaved }: Props) {
+  const isCreditAccount = isCreditCard;
   const [mode, setMode] = useState<"total" | "monthly">(isCreditAccount ? "total" : "monthly");
   const [totalValue, setTotalValue] = useState(String(-totalRemainingDebt));
   const [monthlyValue, setMonthlyValue] = useState(String(calculated));

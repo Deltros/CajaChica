@@ -1,4 +1,4 @@
-type AccountRef = { id: string };
+type AccountRef = { id: string; isCreditCard: boolean };
 type IncomeEntry = { accountId: string; amount: number; source: string; date: string | Date };
 type ExpenseEntry = { accountId: string | null; amount: number; type: string; source: string; date: string | Date };
 type InstallmentEntry = { isPaid: boolean; amount: number; plan: { accountId: string | null } };
@@ -60,7 +60,7 @@ export function computeAccountBalance(
 
   const totalRemainingDebt = plansDebt + adjExpenses - adjIncomes;
 
-  if (totalRemainingDebt > 0) {
+  if (account.isCreditCard) {
     // Find the date of the most recent BALANCE_ADJUST_TOTAL entry for this account.
     // USER expenses entered AFTER that date are incremental debt not yet captured
     // by any adjustment, so they must be added on top.
