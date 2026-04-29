@@ -16,7 +16,7 @@ import PendingExpenseModal from "@/components/PendingExpenseModal";
 
 type Account = { id: string; name: string; type: string; isCreditCard: boolean; isActive: boolean; isDefault: boolean };
 type Income = { id: string; accountId: string; amount: number; label: string | null; date: string; source: string; account: Account; categories: { category: { id: string; name: string } }[] };
-type Expense = { id: string; description: string; amount: number; type: string; date: string; source: string; accountId: string | null; account: { name: string } | null; categories: { category: { id: string; name: string } }[] };
+type Expense = { id: string; description: string; amount: number; type: string; date: string; source: string; accountId: string | null; recurringGroupId: string | null; recurringEndYear: number | null; recurringEndMonth: number | null; account: { name: string } | null; categories: { category: { id: string; name: string } }[] };
 type PeriodInstallment = { id: string; planId: string; amount: number; isPaid: boolean; plan: { name: string; totalInstallments: number; paidInstallments: number; totalAmount: number; startYear: number; startMonth: number; accountId: string | null } };
 type Period = { id: string; incomes: Income[]; expenses: Expense[]; installments: PeriodInstallment[] };
 type InstallmentPlan = { id: string; name: string; totalInstallments: number; paidInstallments: number; installmentAmount: number; accountId: string | null; startYear: number; startMonth: number };
@@ -49,6 +49,7 @@ export default function DashboardPage() {
   const [showGastos, setShowGastos] = useState(true);
   const [showZeroAccounts, setShowZeroAccounts] = useState(false);
   const [selectedPending, setSelectedPending] = useState<Expense | null>(null);
+  const [confirmDeleteFixed, setConfirmDeleteFixed] = useState<Expense | null>(null);
   const [editExpense, setEditExpense] = useState<EditExpense | null>(null);
   const [editIncome, setEditIncome] = useState<EditIncome | null>(null);
 
@@ -68,8 +69,19 @@ export default function DashboardPage() {
 
   useEffect(() => { fetchPeriod(); }, [fetchPeriod]);
 
-  async function deleteExpense(id: string) {
-    await fetch(`/api/expenses?id=${id}`, { method: "DELETE" });
+  function deleteExpense(id: string) {
+    const expense = period?.expenses.find((e) => e.id === id);
+    if (expense?.type === "FIXED" && expense.recurringGroupId) {
+      setConfirmDeleteFixed(expense);
+      return;
+    }
+    fetch(`/api/expenses?id=${id}`, { method: "DELETE" }).then(fetchPeriod);
+  }
+
+  async function confirmDeleteFixedExpense() {
+    if (!confirmDeleteFixed) return;
+    await fetch(`/api/expenses?id=${confirmDeleteFixed.id}`, { method: "DELETE" });
+    setConfirmDeleteFixed(null);
     fetchPeriod();
   }
 
@@ -584,6 +596,22 @@ export default function DashboardPage() {
         />
       )}
 
+      {confirmDeleteFixed && (
+        <Modal title="Eliminar gasto fijo" onClose={() => setConfirmDeleteFixed(null)}>
+          <p style={{ fontSize: 14, color: "var(--ink-2)", margin: "0 0 20px" }}>
+            Al eliminar este gasto fijo se eliminará en los meses a futuro también. ¿Desea continuar?
+          </p>
+          <div style={{ display: "flex", gap: 10 }}>
+            <button onClick={() => setConfirmDeleteFixed(null)} style={{ flex: 1, padding: "13px", borderRadius: 14, border: "1px solid var(--line)", background: "var(--bg)", color: "var(--ink-2)", cursor: "pointer", fontSize: 14 }}>
+              Cancelar
+            </button>
+            <button onClick={confirmDeleteFixedExpense} style={{ flex: 1, padding: "13px", borderRadius: 14, border: "none", background: "var(--danger)", color: "white", cursor: "pointer", fontSize: 14, fontWeight: 500 }}>
+              Sí, eliminar
+            </button>
+          </div>
+        </Modal>
+      )}
+
       {selectedPending && (
         <PendingExpenseModal
           expense={selectedPending}
@@ -720,7 +748,7 @@ function ExpenseList({
               )}
               <span style={{ fontSize: 14.5, color: "var(--ink)" }}>{e.description}</span>
             </div>
-            {(e.account || e.categories.length > 0) && (
+            {(e.account || e.categories.length > 0 || e.recurringEndYear != null) && (
               <div style={{ display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center", fontSize: 11 }}>
                 {e.account && (
                   <span style={{ padding: "2px 8px", borderRadius: 99, background: "var(--bg-soft)", color: "var(--ink-2)", border: "1px solid var(--line)" }}>
@@ -732,6 +760,11 @@ function ExpenseList({
                     {category.name}
                   </span>
                 ))}
+                {e.recurringEndYear != null && (
+                  <span style={{ padding: "2px 8px", borderRadius: 99, background: "var(--bg-soft)", color: "var(--ink-3)", border: "1px solid var(--line-soft)", fontStyle: "italic" }}>
+                    Último mes
+                  </span>
+                )}
               </div>
             )}
           </div>

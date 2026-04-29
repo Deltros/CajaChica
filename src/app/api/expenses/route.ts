@@ -39,12 +39,12 @@ export async function POST(req: Request) {
         source,
         date: date ? new Date(date) : new Date(),
         accountId: accountId ?? null,
+        recurringGroupId: type === "FIXED" ? crypto.randomUUID() : null,
         categories: categoryIds?.length
           ? { create: categoryIds.map((categoryId) => ({ categoryId })) }
           : undefined,
       },
     });
-
 
     return NextResponse.json(expense, { status: 201 });
   } catch (err) {
@@ -63,10 +63,41 @@ export async function DELETE(req: Request) {
 
   const expense = await prisma.expense.findFirst({
     where: { id, period: { userId: session.user.id } },
+    include: { period: true },
   });
   if (!expense) return NextResponse.json({ error: "No encontrado" }, { status: 404 });
 
-  await prisma.expense.delete({ where: { id } });
+  if (expense.recurringGroupId) {
+    const { year, month } = expense.period;
+    const currentOffset = year * 12 + (month - 1);
+
+    const allInstances = await prisma.expense.findMany({
+      where: { recurringGroupId: expense.recurringGroupId, period: { userId: session.user.id } },
+      include: { period: true },
+    });
+
+    const idsToDelete = allInstances
+      .filter((e) => e.period.year * 12 + (e.period.month - 1) >= currentOffset)
+      .map((e) => e.id);
+
+    await prisma.expense.deleteMany({ where: { id: { in: idsToDelete } } });
+
+    // Mark the last surviving instance as the end of the series so propagation stops here
+    const survivors = allInstances
+      .filter((e) => e.period.year * 12 + (e.period.month - 1) < currentOffset)
+      .sort((a, b) => (b.period.year * 12 + b.period.month) - (a.period.year * 12 + a.period.month));
+
+    if (survivors.length > 0) {
+      const lastSurvivor = survivors[0];
+      await prisma.expense.update({
+        where: { id: lastSurvivor.id },
+        data: { recurringEndYear: lastSurvivor.period.year, recurringEndMonth: lastSurvivor.period.month },
+      });
+    }
+  } else {
+    await prisma.expense.delete({ where: { id } });
+  }
+
   return NextResponse.json({ ok: true });
 }
 
@@ -80,6 +111,7 @@ export async function PATCH(req: Request) {
 
   const expense = await prisma.expense.findFirst({
     where: { id, period: { userId: session.user.id } },
+    include: { period: true },
   });
   if (!expense) return NextResponse.json({ error: "No encontrado" }, { status: 404 });
 
@@ -98,6 +130,36 @@ export async function PATCH(req: Request) {
     if (categoryIds.length > 0) {
       await prisma.expenseCategory.createMany({
         data: categoryIds.map((categoryId: string) => ({ expenseId: id, categoryId })),
+      });
+    }
+  }
+
+  // Propagate edits to future instances of the same recurring fixed expense
+  if (expense.recurringGroupId) {
+    const { year, month } = expense.period;
+    const currentOffset = year * 12 + (month - 1);
+
+    const futureInstances = await prisma.expense.findMany({
+      where: {
+        recurringGroupId: expense.recurringGroupId,
+        id: { not: id },
+        period: { userId: session.user.id },
+      },
+      include: { period: true },
+    });
+
+    const futureIds = futureInstances
+      .filter((e) => e.period.year * 12 + (e.period.month - 1) > currentOffset)
+      .map((e) => e.id);
+
+    if (futureIds.length > 0) {
+      await prisma.expense.updateMany({
+        where: { id: { in: futureIds } },
+        data: {
+          ...(amount !== undefined && { amount: parseInt(String(amount)) }),
+          ...(description !== undefined && { description }),
+          ...(accountId !== undefined && { accountId: accountId || null }),
+        },
       });
     }
   }

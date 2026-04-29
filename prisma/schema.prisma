@@ -86,15 +86,18 @@ model IncomeCategory {
 
 // Gastos del período
 model Expense {
-  id          String      @id @default(cuid())
-  periodId    String
-  accountId   String?
-  description String
-  amount      Int
-  type        ExpenseType @default(VARIABLE)
-  date        DateTime    @default(now())
-  createdAt   DateTime    @default(now())
-  source      EntrySource @default(USER)
+  id               String      @id @default(cuid())
+  periodId         String
+  accountId        String?
+  description      String
+  amount           Int
+  type             ExpenseType @default(VARIABLE)
+  date             DateTime    @default(now())
+  createdAt        DateTime    @default(now())
+  source           EntrySource @default(USER)
+  recurringGroupId  String?
+  recurringEndYear  Int?
+  recurringEndMonth Int?
 
   period     MonthlyPeriod     @relation(fields: [periodId], references: [id], onDelete: Cascade)
   account    Account?          @relation(fields: [accountId], references: [id], onDelete: SetNull)
