@@ -1,8 +1,10 @@
+import { installmentNumberForPeriod } from "@/lib/installments";
+
 type AccountRef = { id: string; isCreditCard: boolean };
 type IncomeEntry = { accountId: string; amount: number; source: string; date: string | Date };
 type ExpenseEntry = { accountId: string | null; amount: number; type: string; source: string; date: string | Date };
 type InstallmentEntry = { isPaid: boolean; amount: number; plan: { accountId: string | null } };
-type PlanEntry = { accountId: string | null; totalInstallments: number; paidInstallments: number; installmentAmount: number };
+type PlanEntry = { accountId: string | null; totalInstallments: number; installmentAmount: number; startYear: number; startMonth: number };
 
 export type AccountBalance = {
   balance: number;
@@ -29,6 +31,8 @@ export function computeAccountBalance(
   expenses: ExpenseEntry[],
   installments: InstallmentEntry[],
   allPlans: PlanEntry[],
+  year: number,
+  month: number,
 ): AccountBalance {
   const inc = incomes
     .filter((i) => i.accountId === account.id)
@@ -46,9 +50,16 @@ export function computeAccountBalance(
     .filter((e) => e.accountId === account.id && e.type === "PENDING")
     .reduce((s, e) => s + e.amount, 0);
 
+  // Uses time-based offset because paidInstallments is never incremented (no payment confirmation module exists yet).
+  // When a "mark as paid" module is added, replace installmentNumberForPeriod with (totalInstallments - paidInstallments)
+  // so remaining debt reflects actual payments, not calendar position.
   const plansDebt = allPlans
     .filter((p) => p.accountId === account.id)
-    .reduce((s, p) => s + (p.totalInstallments - p.paidInstallments) * p.installmentAmount, 0);
+    .reduce((s, p) => {
+      const currentInstallment = installmentNumberForPeriod(p, year, month);
+      const remaining = Math.max(0, p.totalInstallments - currentInstallment + 1);
+      return s + remaining * p.installmentAmount;
+    }, 0);
 
   const adjExpenses = expenses
     .filter((e) => e.accountId === account.id && e.source === "BALANCE_ADJUST_TOTAL")

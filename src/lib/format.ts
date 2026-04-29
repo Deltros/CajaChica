@@ -6,8 +6,17 @@ export function formatCLP(amount: number): string {
   }).format(amount);
 }
 
-export function daysLeftInMonth(): number {
+export function daysLeftInMonth(year: number, month: number): number {
   const now = new Date();
-  const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-  return lastDay - now.getDate();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth() + 1;
+  const totalDays = new Date(year, month, 0).getDate();
+
+  if (year > currentYear || (year === currentYear && month > currentMonth)) {
+    return totalDays;
+  }
+  if (year === currentYear && month === currentMonth) {
+    return totalDays - now.getDate();
+  }
+  return 0;
 }

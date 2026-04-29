@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { formatCLP, daysLeftInMonth } from "@/lib/format";
 import { computeAccountBalance } from "@/lib/accountBalance";
+import { installmentNumberForPeriod } from "@/lib/installments";
 import ExpenseModal, { Modal, type EditExpense } from "@/components/ExpenseModal";
 import type { EditIncome } from "@/components/IncomeModal";
 import IncomeModal from "@/components/IncomeModal";
@@ -18,7 +19,7 @@ type Income = { id: string; accountId: string; amount: number; label: string | n
 type Expense = { id: string; description: string; amount: number; type: string; date: string; source: string; accountId: string | null; account: { name: string } | null; categories: { category: { id: string; name: string } }[] };
 type PeriodInstallment = { id: string; planId: string; amount: number; isPaid: boolean; plan: { name: string; totalInstallments: number; paidInstallments: number; totalAmount: number; startYear: number; startMonth: number; accountId: string | null } };
 type Period = { id: string; incomes: Income[]; expenses: Expense[]; installments: PeriodInstallment[] };
-type InstallmentPlan = { id: string; name: string; totalInstallments: number; paidInstallments: number; installmentAmount: number; accountId: string | null };
+type InstallmentPlan = { id: string; name: string; totalInstallments: number; paidInstallments: number; installmentAmount: number; accountId: string | null; startYear: number; startMonth: number };
 
 const MONTHS = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 const DOT_COLORS = ["var(--accent)", "var(--cool)", "#C2883D", "var(--ink-4)", "var(--danger)"];
@@ -106,6 +107,8 @@ export default function DashboardPage() {
       period?.expenses ?? [],
       period?.installments ?? [],
       allPlans,
+      year,
+      month,
     );
     return { account, balance, pendingSpent, totalRemainingDebt };
   });
@@ -113,7 +116,7 @@ export default function DashboardPage() {
   const totalNegative = accountBalances.filter((b) => b.balance < 0).reduce((s, b) => s + b.balance, 0);
 
   const remaining = totalPositive + totalNegative;
-  const daysLeft = daysLeftInMonth();
+  const daysLeft = daysLeftInMonth(year, month);
   const dailyBudget = daysLeft > 0 ? Math.floor(remaining / daysLeft) : 0;
   const dailyBudgetWithPending = daysLeft > 0 ? Math.floor((remaining - totalPending) / daysLeft) : 0;
 
@@ -417,20 +420,23 @@ export default function DashboardPage() {
                               <div style={{ flex: 1, minWidth: 0 }}>
                                 <div style={{ fontSize: 14.5, color: "var(--ink)", marginBottom: 8 }}>{inst.plan.name}</div>
                                 <div style={{ display: "flex", gap: 3, alignItems: "center" }}>
-                                  {Array.from({ length: Math.min(inst.plan.totalInstallments, 12) }).map((_, i) => (
-                                    <span
-                                      key={i}
-                                      style={{
-                                        height: 4, flex: 1, maxWidth: 26, borderRadius: 99,
-                                        background: i < inst.plan.paidInstallments ? "#E3A58E"
-                                          : i === inst.plan.paidInstallments ? "var(--danger)"
-                                          : "var(--danger-soft)",
-                                        display: "block",
-                                      }}
-                                    />
-                                  ))}
+                                  {(() => {
+                                    const currentInstallment = installmentNumberForPeriod(inst.plan, year, month);
+                                    return Array.from({ length: Math.min(inst.plan.totalInstallments, 12) }).map((_, i) => (
+                                      <span
+                                        key={i}
+                                        style={{
+                                          height: 4, flex: 1, maxWidth: 26, borderRadius: 99,
+                                          background: i < currentInstallment - 1 ? "#E3A58E"
+                                            : i === currentInstallment - 1 ? "var(--danger)"
+                                            : "var(--danger-soft)",
+                                          display: "block",
+                                        }}
+                                      />
+                                    ));
+                                  })()}
                                   <span style={{ marginLeft: 8, fontSize: 11, color: "var(--ink-3)", whiteSpace: "nowrap" }}>
-                                    Cuota {inst.plan.paidInstallments + 1} de {inst.plan.totalInstallments}
+                                    Cuota {installmentNumberForPeriod(inst.plan, year, month)} de {inst.plan.totalInstallments}
                                   </span>
                                 </div>
                                 {inst.plan.accountId && (() => {
@@ -622,19 +628,22 @@ export default function DashboardPage() {
               </div>
               <div style={{ display: "flex", justifyContent: "space-between" }}>
                 <span style={{ color: "var(--ink-3)" }}>Progreso</span>
-                <span style={{ color: "var(--ink)", fontWeight: 500 }}>{selectedInstallment.plan.paidInstallments + 1} de {selectedInstallment.plan.totalInstallments} cuotas</span>
+                <span style={{ color: "var(--ink)", fontWeight: 500 }}>{installmentNumberForPeriod(selectedInstallment.plan, year, month)} de {selectedInstallment.plan.totalInstallments} cuotas</span>
               </div>
               <div style={{ display: "flex", justifyContent: "space-between" }}>
                 <span style={{ color: "var(--ink-3)" }}>Quedan por pagar</span>
                 <span style={{ color: "var(--ink)", fontWeight: 500 }}>
-                  {formatCLP(selectedInstallment.amount * (selectedInstallment.plan.totalInstallments - selectedInstallment.plan.paidInstallments - 1))}
+                  {formatCLP(selectedInstallment.amount * (selectedInstallment.plan.totalInstallments - installmentNumberForPeriod(selectedInstallment.plan, year, month)))}
                 </span>
               </div>
             </div>
             <div style={{ display: "flex", gap: 3 }}>
-              {Array.from({ length: selectedInstallment.plan.totalInstallments }).map((_, i) => (
-                <span key={i} style={{ height: 6, flex: 1, borderRadius: 99, display: "block", background: i < selectedInstallment.plan.paidInstallments ? "#E3A58E" : i === selectedInstallment.plan.paidInstallments ? "var(--danger)" : "var(--danger-soft)" }} />
-              ))}
+              {(() => {
+                const currentInstallment = installmentNumberForPeriod(selectedInstallment.plan, year, month);
+                return Array.from({ length: selectedInstallment.plan.totalInstallments }).map((_, i) => (
+                  <span key={i} style={{ height: 6, flex: 1, borderRadius: 99, display: "block", background: i < currentInstallment - 1 ? "#E3A58E" : i === currentInstallment - 1 ? "var(--danger)" : "var(--danger-soft)" }} />
+                ));
+              })()}
             </div>
             {confirmDeleteInstallment ? (
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
