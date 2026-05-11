@@ -4,6 +4,8 @@ import { useState } from "react";
 import { Modal } from "./ExpenseModal";
 import { formatCLP } from "@/lib/format";
 import CategoryPicker from "./CategoryPicker";
+import * as apiClient from "@/apiClient";
+import { ExpenseType } from "@/domain/enums";
 
 type Account = { id: string; name: string };
 
@@ -56,11 +58,7 @@ export default function PendingExpenseModal({ expense, accounts, onClose, onSave
 
   async function handleSave() {
     setLoading(true);
-    await fetch("/api/expenses", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(buildBody()),
-    });
+    await apiClient.updateExpense(buildBody());
     setLoading(false);
     onSaved();
     onClose();
@@ -68,11 +66,7 @@ export default function PendingExpenseModal({ expense, accounts, onClose, onSave
 
   async function handleConvert() {
     setLoading(true);
-    await fetch("/api/expenses", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(buildBody({ type: "VARIABLE" })),
-    });
+    await apiClient.updateExpense(buildBody({ type: ExpenseType.VARIABLE }));
     setLoading(false);
     onSaved();
     onClose();
@@ -80,7 +74,7 @@ export default function PendingExpenseModal({ expense, accounts, onClose, onSave
 
   async function handleDelete() {
     setLoading(true);
-    await fetch(`/api/expenses?id=${expense.id}`, { method: "DELETE" });
+    await apiClient.deleteExpense(expense.id);
     setLoading(false);
     onSaved();
     onClose();

@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { formatCLP, daysLeftInMonth } from "@/lib/format";
-import { computeAccountBalance } from "@/lib/accountBalance";
-import { installmentNumberForPeriod } from "@/lib/installments";
+import { formatCLP } from "@/lib/format";
+import { installmentNumberForPeriod } from "@/domain/calculators/installments";
+import * as apiClient from "@/apiClient";
+import type { AccountDTO, ExpenseDTO, IncomeDTO, PeriodDTO, PeriodInstallmentDTO, InstallmentPlanDTO, PeriodSummary } from "@/domain/types";
 import ExpenseModal, { Modal, type EditExpense } from "@/components/ExpenseModal";
 import type { EditIncome } from "@/components/IncomeModal";
 import IncomeModal from "@/components/IncomeModal";
@@ -13,17 +14,14 @@ import { Logo } from "@/components/Logo";
 import DailyDonut from "@/components/DailyDonut";
 import StackedBudgetBar from "@/components/StackedBudgetBar";
 import PendingExpenseModal from "@/components/PendingExpenseModal";
-
-type Account = { id: string; name: string; type: string; isCreditCard: boolean; isActive: boolean; isDefault: boolean };
-type Income = { id: string; accountId: string; amount: number; label: string | null; date: string; source: string; account: Account; categories: { category: { id: string; name: string } }[] };
-type Expense = { id: string; description: string; amount: number; type: string; date: string; source: string; accountId: string | null; recurringGroupId: string | null; recurringEndYear: number | null; recurringEndMonth: number | null; account: { name: string } | null; categories: { category: { id: string; name: string } }[] };
-type PeriodInstallment = { id: string; planId: string; amount: number; isPaid: boolean; plan: { name: string; totalInstallments: number; paidInstallments: number; totalAmount: number; startYear: number; startMonth: number; accountId: string | null } };
-type Period = { id: string; incomes: Income[]; expenses: Expense[]; installments: PeriodInstallment[] };
-type InstallmentPlan = { id: string; name: string; totalInstallments: number; paidInstallments: number; installmentAmount: number; accountId: string | null; startYear: number; startMonth: number };
+import ExpenseList from "@/components/ExpenseList";
+import IncomeList from "@/components/IncomeList";
+import CategoryHeader from "@/components/CategoryHeader";
+import OrphanedPlanItem from "@/components/OrphanedPlanItem";
+import { ExpenseType } from "@/domain/enums";
 
 const MONTHS = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 const DOT_COLORS = ["var(--accent)", "var(--cool)", "#C2883D", "var(--ink-4)", "var(--danger)"];
-
 const MONO: React.CSSProperties = { fontFamily: "var(--font-geist-mono), ui-monospace, monospace", fontVariantNumeric: "tabular-nums" };
 const SERIF: React.CSSProperties = { fontFamily: "var(--font-instrument-serif), serif" };
 
@@ -35,105 +33,100 @@ export default function DashboardPage() {
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth() + 1);
-  const [period, setPeriod] = useState<Period | null>(null);
-  const [accounts, setAccounts] = useState<Account[]>([]);
-  const [allPlans, setAllPlans] = useState<InstallmentPlan[]>([]);
+  const [period, setPeriod] = useState<PeriodDTO | null>(null);
+  const [summary, setSummary] = useState<PeriodSummary | null>(null);
+  const [accounts, setAccounts] = useState<AccountDTO[]>([]);
+  const [allPlans, setAllPlans] = useState<InstallmentPlanDTO[]>([]);
   const [loading, setLoading] = useState(true);
   const [showExpenseModal, setShowExpenseModal] = useState(false);
   const [showIncomeModal, setShowIncomeModal] = useState(false);
-  const [selectedInstallment, setSelectedInstallment] = useState<PeriodInstallment | null>(null);
+  const [selectedInstallment, setSelectedInstallment] = useState<PeriodInstallmentDTO | null>(null);
   const [confirmDeleteInstallment, setConfirmDeleteInstallment] = useState(false);
-  const [balanceEdit, setBalanceEdit] = useState<{ account: Account; calculated: number; totalRemainingDebt: number; isCreditCard: boolean } | null>(null);
+  const [balanceEdit, setBalanceEdit] = useState<{ account: AccountDTO; calculated: number; totalRemainingDebt: number; isCreditCard: boolean } | null>(null);
   const [showIngresos, setShowIngresos] = useState(true);
   const [showSaldo, setShowSaldo] = useState(true);
   const [showGastos, setShowGastos] = useState(true);
   const [showZeroAccounts, setShowZeroAccounts] = useState(false);
-  const [selectedPending, setSelectedPending] = useState<Expense | null>(null);
-  const [confirmDeleteFixed, setConfirmDeleteFixed] = useState<Expense | null>(null);
+  const [selectedPending, setSelectedPending] = useState<ExpenseDTO | null>(null);
+  const [confirmDeleteFixed, setConfirmDeleteFixed] = useState<ExpenseDTO | null>(null);
   const [editExpense, setEditExpense] = useState<EditExpense | null>(null);
   const [editIncome, setEditIncome] = useState<EditIncome | null>(null);
 
-  const fetchPeriod = useCallback(async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
-    const [periodRes, accountsRes, plansRes] = await Promise.all([
-      fetch(`/api/periods?year=${year}&month=${month}`),
-      fetch("/api/accounts"),
-      fetch("/api/installments"),
-    ]);
-    const [periodData, accountsData, plansData] = await Promise.all([periodRes.json(), accountsRes.json(), plansRes.json()]);
-    setPeriod(periodData);
-    setAccounts(accountsData);
-    setAllPlans(plansData);
-    setLoading(false);
+    try {
+      const [periodResponse, accountsData, plansData] = await Promise.all([
+        apiClient.fetchPeriod(year, month),
+        apiClient.fetchAccounts(),
+        apiClient.fetchInstallmentPlans(),
+      ]);
+      setPeriod(periodResponse.period);
+      setSummary(periodResponse.summary);
+      setAccounts(accountsData);
+      setAllPlans(plansData);
+    } finally {
+      setLoading(false);
+    }
   }, [year, month]);
 
-  useEffect(() => { fetchPeriod(); }, [fetchPeriod]);
+  useEffect(() => { fetchData(); }, [fetchData]);
 
-  function deleteExpense(id: string) {
+  async function handleDeleteExpense(id: string) {
     const expense = period?.expenses.find((e) => e.id === id);
-    if (expense?.type === "FIXED" && expense.recurringGroupId) {
+    if (expense?.type === ExpenseType.FIXED && expense.recurringGroupId) {
       setConfirmDeleteFixed(expense);
       return;
     }
-    fetch(`/api/expenses?id=${id}`, { method: "DELETE" }).then(fetchPeriod);
+    await apiClient.deleteExpense(id);
+    fetchData();
   }
 
   async function confirmDeleteFixedExpense() {
     if (!confirmDeleteFixed) return;
-    await fetch(`/api/expenses?id=${confirmDeleteFixed.id}`, { method: "DELETE" });
+    await apiClient.deleteExpense(confirmDeleteFixed.id);
     setConfirmDeleteFixed(null);
-    fetchPeriod();
+    fetchData();
   }
 
-  async function deleteInstallmentPlan(planId: string) {
-    await fetch(`/api/installments?id=${planId}`, { method: "DELETE" });
+  async function handleDeleteInstallmentPlan(planId: string) {
+    await apiClient.deleteInstallmentPlan(planId);
     setSelectedInstallment(null);
     setConfirmDeleteInstallment(false);
-    fetchPeriod();
+    fetchData();
   }
 
-  async function deleteIncome(id: string) {
-    await fetch(`/api/incomes?id=${id}`, { method: "DELETE" });
-    fetchPeriod();
+  async function handleDeleteIncome(id: string) {
+    await apiClient.deleteIncome(id);
+    fetchData();
   }
 
   const activeAccounts = accounts.filter((a) => a.isActive);
-  const totalIncome = period?.incomes.reduce((s, i) => s + i.amount, 0) ?? 0;
-  const fixedExpenses = period?.expenses.filter((e) => e.type === "FIXED") ?? [];
-  const savings = period?.expenses.filter((e) => e.type === "SAVING") ?? [];
-  const variableExpenses = period?.expenses.filter((e) => e.type === "VARIABLE") ?? [];
-  const totalFixed = fixedExpenses.reduce((s, e) => s + e.amount, 0);
-  const totalSavings = savings.reduce((s, e) => s + e.amount, 0);
-  const totalVariable = variableExpenses.reduce((s, e) => s + e.amount, 0);
-  const pendingInstallments = period?.installments.filter((i) => !i.isPaid) ?? [];
-  const totalPendingInstallments = pendingInstallments.reduce((s, i) => s + i.amount, 0);
-  const orphanedPlans = allPlans.filter((p) => !pendingInstallments.some((pi) => pi.planId === p.id));
-  const pendingExpenses = period?.expenses.filter((e) => e.type === "PENDING") ?? [];
-  const totalPending = pendingExpenses.reduce((s, e) => s + e.amount, 0);
 
-  // Account balances are the source of truth — remaining derives from them.
-  const accountBalances = activeAccounts.map((account) => {
-    const { balance, pendingSpent, totalRemainingDebt } = computeAccountBalance(
-      account,
-      period?.incomes ?? [],
-      period?.expenses ?? [],
-      period?.installments ?? [],
-      allPlans,
-      year,
-      month,
-    );
-    return { account, balance, pendingSpent, totalRemainingDebt };
-  });
+  // All totals and balances come from the pre-calculated summary — no domain logic here.
+  const fixedExpenses = period?.expenses.filter((e) => e.type === ExpenseType.FIXED) ?? [];
+  const savings = period?.expenses.filter((e) => e.type === ExpenseType.SAVING) ?? [];
+  const variableExpenses = period?.expenses.filter((e) => e.type === ExpenseType.VARIABLE) ?? [];
+  const pendingExpenses = period?.expenses.filter((e) => e.type === ExpenseType.PENDING) ?? [];
+  const pendingInstallments = period?.installments.filter((i) => !i.isPaid) ?? [];
+  const orphanedPlans = allPlans.filter((p) => !pendingInstallments.some((pi) => pi.planId === p.id));
+
+  const {
+    totalIncome = 0,
+    totalFixed = 0,
+    totalSavings = 0,
+    totalVariable = 0,
+    totalPending = 0,
+    totalPendingInstallments = 0,
+    remaining = 0,
+    daysLeftInMonth: daysLeft = 0,
+    dailyBudget = 0,
+    dailyBudgetWithPending = 0,
+    effectiveTotalVariable = 0,
+    accountBalances = [],
+  } = summary ?? {};
+
   const totalPositive = accountBalances.filter((b) => b.balance > 0).reduce((s, b) => s + b.balance, 0);
   const totalNegative = accountBalances.filter((b) => b.balance < 0).reduce((s, b) => s + b.balance, 0);
-
-  const remaining = totalPositive + totalNegative;
-  const daysLeft = daysLeftInMonth(year, month);
-  const dailyBudget = daysLeft > 0 ? Math.floor(remaining / daysLeft) : 0;
-  const dailyBudgetWithPending = daysLeft > 0 ? Math.floor((remaining - totalPending) / daysLeft) : 0;
-
-  // Variable segment for the budget bar: what income covers beyond installments and disponible.
-  const effectiveTotalVariable = Math.max(0, totalIncome - totalFixed - totalSavings - totalPendingInstallments - remaining);
 
   function prevMonth() {
     if (month === 1) { setMonth(12); setYear((y) => y - 1); }
@@ -270,7 +263,7 @@ export default function DashboardPage() {
                     {!period?.incomes.length ? (
                       <p style={{ textAlign: "center", color: "var(--ink-4)", fontSize: 13, padding: "16px 0" }}>Sin ingresos registrados</p>
                     ) : (
-                      <IncomeList items={period.incomes} onDelete={deleteIncome} onEdit={setEditIncome} />
+                      <IncomeList items={period.incomes} onDelete={handleDeleteIncome} onEdit={setEditIncome} />
                     )}
                   </div>
                 )}
@@ -319,43 +312,47 @@ export default function DashboardPage() {
                         return (
                           <>
                             <ul style={{ margin: 0, padding: 0, listStyle: "none" }}>
-                              {visible.map(({ account, balance, pendingSpent, totalRemainingDebt }, idx) => (
-                                <li
-                                  key={account.id}
-                                  onClick={() => setBalanceEdit({ account, calculated: balance, totalRemainingDebt, isCreditCard: account.isCreditCard })}
-                                  style={{
-                                    display: "flex", alignItems: "center", justifyContent: "space-between",
-                                    padding: "14px 18px",
-                                    borderTop: idx === 0 ? "none" : "1px solid var(--line-soft)",
-                                    fontSize: 14, cursor: "pointer",
-                                  }}
-                                >
-                                  <span style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                                    <span style={{ width: 10, height: 10, borderRadius: 3, background: DOT_COLORS[accountBalances.findIndex((b) => b.account.id === account.id) % DOT_COLORS.length], flexShrink: 0, display: "block" }} />
-                                    {account.name}
-                                  </span>
-                                  <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 2 }}>
-                                    <span style={{ ...MONO, fontWeight: 500, fontSize: 13.5, color: balance > 0 ? "var(--accent)" : balance < 0 ? "var(--danger)" : "var(--ink-4)" }}>
-                                      {balance < 0 ? neg(balance) : formatCLP(balance)}
+                              {visible.map(({ accountId, balance, pendingSpent, totalRemainingDebt }, idx) => {
+                                const account = activeAccounts.find((a) => a.id === accountId);
+                                if (!account) return null;
+                                return (
+                                  <li
+                                    key={accountId}
+                                    onClick={() => setBalanceEdit({ account, calculated: balance, totalRemainingDebt, isCreditCard: account.isCreditCard })}
+                                    style={{
+                                      display: "flex", alignItems: "center", justifyContent: "space-between",
+                                      padding: "14px 18px",
+                                      borderTop: idx === 0 ? "none" : "1px solid var(--line-soft)",
+                                      fontSize: 14, cursor: "pointer",
+                                    }}
+                                  >
+                                    <span style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                                      <span style={{ width: 10, height: 10, borderRadius: 3, background: DOT_COLORS[accountBalances.findIndex((b) => b.accountId === accountId) % DOT_COLORS.length], flexShrink: 0, display: "block" }} />
+                                      {account.name}
                                     </span>
-                                    {pendingSpent > 0 && (
-                                      <span style={{ ...MONO, fontSize: 11, color: "var(--pending)" }}>
-                                        ({balance - pendingSpent < 0 ? neg(balance - pendingSpent) : formatCLP(balance - pendingSpent)} c/ pend.)
+                                    <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 2 }}>
+                                      <span style={{ ...MONO, fontWeight: 500, fontSize: 13.5, color: balance > 0 ? "var(--accent)" : balance < 0 ? "var(--danger)" : "var(--ink-4)" }}>
+                                        {balance < 0 ? neg(balance) : formatCLP(balance)}
                                       </span>
-                                    )}
-                                    {totalRemainingDebt > 0 && (
-                                      <span style={{ ...MONO, fontSize: 11, color: "#C2883D" }}>
-                                        Total cuotas: {neg(totalRemainingDebt)}
-                                      </span>
-                                    )}
-                                    {totalRemainingDebt > 0 && pendingSpent > 0 && (
-                                      <span style={{ ...MONO, fontSize: 11, color: "var(--pending)" }}>
-                                        Total c/ pend.: {neg(totalRemainingDebt + pendingSpent)}
-                                      </span>
-                                    )}
-                                  </div>
-                                </li>
-                              ))}
+                                      {pendingSpent > 0 && (
+                                        <span style={{ ...MONO, fontSize: 11, color: "var(--pending)" }}>
+                                          ({balance - pendingSpent < 0 ? neg(balance - pendingSpent) : formatCLP(balance - pendingSpent)} c/ pend.)
+                                        </span>
+                                      )}
+                                      {totalRemainingDebt > 0 && (
+                                        <span style={{ ...MONO, fontSize: 11, color: "#C2883D" }}>
+                                          Total cuotas: {neg(totalRemainingDebt)}
+                                        </span>
+                                      )}
+                                      {totalRemainingDebt > 0 && pendingSpent > 0 && (
+                                        <span style={{ ...MONO, fontSize: 11, color: "var(--pending)" }}>
+                                          Total c/ pend.: {neg(totalRemainingDebt + pendingSpent)}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </li>
+                                );
+                              })}
                             </ul>
                             {zero.length > 0 && (
                               <button
@@ -409,7 +406,7 @@ export default function DashboardPage() {
                     {/* Cuotas */}
                     {(pendingInstallments.length > 0 || orphanedPlans.length > 0) && (
                       <>
-                        <CatHeader label="Cuotas" total={totalPendingInstallments} barColor="#D9724C" />
+                        <CategoryHeader label="Cuotas" total={totalPendingInstallments} barColor="#D9724C" />
                         {orphanedPlans.length > 0 && (
                           <ul style={{ margin: 0, padding: 0, listStyle: "none" }}>
                             {orphanedPlans.map((plan) => (
@@ -417,7 +414,7 @@ export default function DashboardPage() {
                                 key={plan.id}
                                 plan={plan}
                                 accounts={accounts}
-                                onDelete={deleteInstallmentPlan}
+                                onDelete={handleDeleteInstallmentPlan}
                               />
                             ))}
                           </ul>
@@ -474,24 +471,24 @@ export default function DashboardPage() {
                     {/* Gastos fijos */}
                     {fixedExpenses.length > 0 && (
                       <>
-                        <CatHeader label="Gastos fijos" total={totalFixed} barColor="var(--danger)" />
-                        <ExpenseList items={fixedExpenses} onDelete={deleteExpense} onEdit={setEditExpense} />
+                        <CategoryHeader label="Gastos fijos" total={totalFixed} barColor="var(--danger)" />
+                        <ExpenseList items={fixedExpenses} onDelete={handleDeleteExpense} onEdit={setEditExpense} />
                       </>
                     )}
 
                     {/* Ahorros */}
                     {savings.length > 0 && (
                       <>
-                        <CatHeader label="Ahorros" total={totalSavings} barColor="var(--cool)" />
-                        <ExpenseList items={savings} onDelete={deleteExpense} onEdit={setEditExpense} />
+                        <CategoryHeader label="Ahorros" total={totalSavings} barColor="var(--cool)" />
+                        <ExpenseList items={savings} onDelete={handleDeleteExpense} onEdit={setEditExpense} />
                       </>
                     )}
 
                     {/* Gastos variables */}
-                    <CatHeader label="Gastos variables" total={totalVariable} barColor="#E3A15E" />
+                    <CategoryHeader label="Gastos variables" total={totalVariable} barColor="#E3A15E" />
                     <ExpenseList
                       items={variableExpenses}
-                      onDelete={deleteExpense}
+                      onDelete={handleDeleteExpense}
                       onEdit={setEditExpense}
                       showDate
                       emptyText="Sin gastos variables aún"
@@ -500,7 +497,7 @@ export default function DashboardPage() {
                     {/* Gastos pendientes */}
                     {pendingExpenses.length > 0 && (
                       <>
-                        <CatHeader label="Gastos pendientes" total={totalPending} barColor="var(--pending)" />
+                        <CategoryHeader label="Gastos pendientes" total={totalPending} barColor="var(--pending)" />
                         <ul style={{ margin: 0, padding: 0, listStyle: "none" }}>
                           {pendingExpenses.map((e, idx) => (
                             <li
@@ -566,7 +563,7 @@ export default function DashboardPage() {
           accounts={activeAccounts}
           defaultAccountId={activeAccounts.find((a) => a.isDefault)?.id}
           onClose={() => setShowExpenseModal(false)}
-          onSaved={fetchPeriod}
+          onSaved={fetchData}
         />
       )}
       {editExpense && period && (
@@ -575,7 +572,7 @@ export default function DashboardPage() {
           accounts={activeAccounts}
           editExpense={editExpense}
           onClose={() => setEditExpense(null)}
-          onSaved={fetchPeriod}
+          onSaved={fetchData}
         />
       )}
       {showIncomeModal && period && (
@@ -583,7 +580,7 @@ export default function DashboardPage() {
           periodId={period.id}
           accounts={activeAccounts}
           onClose={() => setShowIncomeModal(false)}
-          onSaved={fetchPeriod}
+          onSaved={fetchData}
         />
       )}
       {editIncome && period && (
@@ -592,7 +589,7 @@ export default function DashboardPage() {
           accounts={activeAccounts}
           editIncome={editIncome}
           onClose={() => setEditIncome(null)}
-          onSaved={fetchPeriod}
+          onSaved={fetchData}
         />
       )}
 
@@ -617,7 +614,7 @@ export default function DashboardPage() {
           expense={selectedPending}
           accounts={activeAccounts}
           onClose={() => setSelectedPending(null)}
-          onSaved={fetchPeriod}
+          onSaved={fetchData}
         />
       )}
 
@@ -629,7 +626,7 @@ export default function DashboardPage() {
           isCreditCard={balanceEdit.isCreditCard}
           periodId={period.id}
           onClose={() => setBalanceEdit(null)}
-          onSaved={fetchPeriod}
+          onSaved={fetchData}
         />
       )}
 
@@ -678,7 +675,7 @@ export default function DashboardPage() {
                 <p style={{ fontSize: 13, textAlign: "center", color: "var(--ink-2)", margin: 0 }}>¿Eliminar este plan de cuotas?</p>
                 <div style={{ display: "flex", gap: 10 }}>
                   <button onClick={() => setConfirmDeleteInstallment(false)} style={{ flex: 1, padding: "13px", borderRadius: 14, border: "1px solid var(--line)", background: "var(--bg)", color: "var(--ink-2)", cursor: "pointer", fontSize: 14 }}>No</button>
-                  <button onClick={() => deleteInstallmentPlan(selectedInstallment.planId)} style={{ flex: 1, padding: "13px", borderRadius: 14, border: "none", background: "var(--danger)", color: "white", cursor: "pointer", fontSize: 14, fontWeight: 500 }}>Sí, eliminar</button>
+                  <button onClick={() => handleDeleteInstallmentPlan(selectedInstallment.planId)} style={{ flex: 1, padding: "13px", borderRadius: 14, border: "none", background: "var(--danger)", color: "white", cursor: "pointer", fontSize: 14, fontWeight: 500 }}>Sí, eliminar</button>
                 </div>
               </div>
             ) : (
@@ -691,234 +688,5 @@ export default function DashboardPage() {
         </Modal>
       )}
     </div>
-  );
-}
-
-/* ── Sub-components ── */
-
-function CatHeader({ label, total, barColor }: { label: string; total: number; barColor: string }) {
-  return (
-    <div style={{
-      padding: "10px 18px", display: "flex", alignItems: "center",
-      justifyContent: "space-between", fontSize: 11, letterSpacing: "0.14em",
-      textTransform: "uppercase", color: "var(--ink-3)",
-      background: "var(--bg-soft)", borderTop: "1px solid var(--line-soft)",
-    }}>
-      <span style={{ display: "flex", alignItems: "center", gap: 8, fontWeight: 600, color: "var(--ink-2)" }}>
-        <span style={{ width: 3, height: 12, borderRadius: 99, background: barColor, display: "block", flexShrink: 0 }} />
-        {label}
-      </span>
-      <span style={{ fontFamily: "var(--font-geist-mono), ui-monospace, monospace", fontWeight: 500, color: "var(--ink-2)" }}>
-        {formatCLP(total)}
-      </span>
-    </div>
-  );
-}
-
-function ExpenseList({
-  items, onDelete, onEdit, showDate = false, emptyText,
-}: {
-  items: Expense[]; onDelete: (id: string) => void; onEdit?: (e: Expense) => void; showDate?: boolean; emptyText?: string;
-}) {
-  const [confirmId, setConfirmId] = useState<string | null>(null);
-
-  if (items.length === 0 && emptyText) {
-    return <p style={{ textAlign: "center", color: "var(--ink-4)", fontSize: 13, padding: "16px 0" }}>{emptyText}</p>;
-  }
-
-  return (
-    <ul style={{ margin: 0, padding: 0, listStyle: "none" }}>
-      {items.map((e, idx) => (
-        <li
-          key={e.id}
-          style={{
-            display: "flex", alignItems: "flex-start", justifyContent: "space-between",
-            gap: 12, padding: "14px 18px",
-            borderTop: idx === 0 ? "none" : "1px solid var(--line-soft)",
-            cursor: onEdit ? "pointer" : "default",
-          }}
-          onClick={() => onEdit?.(e)}
-        >
-          <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 6 }}>
-            <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
-              {showDate && (
-                <span style={{ fontSize: 11, color: "var(--ink-3)", flexShrink: 0 }}>
-                  {new Date(e.date).toLocaleDateString("es-CL", { day: "numeric", month: "short" })}
-                </span>
-              )}
-              <span style={{ fontSize: 14.5, color: "var(--ink)" }}>{e.description}</span>
-            </div>
-            {(e.account || e.categories.length > 0 || e.recurringEndYear != null) && (
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center", fontSize: 11 }}>
-                {e.account && (
-                  <span style={{ padding: "2px 8px", borderRadius: 99, background: "var(--bg-soft)", color: "var(--ink-2)", border: "1px solid var(--line)" }}>
-                    {e.account.name}
-                  </span>
-                )}
-                {e.categories.map(({ category }) => (
-                  <span key={category.id} style={{ padding: "2px 8px", borderRadius: 99, background: "var(--accent-soft)", color: "var(--accent)", border: "none" }}>
-                    {category.name}
-                  </span>
-                ))}
-                {e.recurringEndYear != null && (
-                  <span style={{ padding: "2px 8px", borderRadius: 99, background: "var(--bg-soft)", color: "var(--ink-3)", border: "1px solid var(--line-soft)", fontStyle: "italic" }}>
-                    Último mes
-                  </span>
-                )}
-              </div>
-            )}
-          </div>
-
-          {confirmId === e.id ? (
-            <div onClick={(ev) => ev.stopPropagation()} style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
-              <span style={{ fontSize: 11, color: "var(--ink-3)" }}>¿Eliminar?</span>
-              <button onClick={() => setConfirmId(null)} style={{ fontSize: 11, padding: "3px 8px", borderRadius: 8, background: "var(--bg-soft)", border: "1px solid var(--line)", color: "var(--ink-2)", cursor: "pointer" }}>No</button>
-              <button onClick={() => { setConfirmId(null); onDelete(e.id); }} style={{ fontSize: 11, padding: "3px 8px", borderRadius: 8, background: "var(--danger)", border: "none", color: "white", cursor: "pointer" }}>Sí</button>
-            </div>
-          ) : (
-            <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
-              <span style={{ fontFamily: "var(--font-geist-mono), ui-monospace, monospace", fontVariantNumeric: "tabular-nums", fontSize: 14, fontWeight: 500, color: "var(--danger)", whiteSpace: "nowrap" }}>
-                {formatCLP(e.amount)}
-              </span>
-              <button
-                onClick={(ev) => { ev.stopPropagation(); setConfirmId(e.id); }}
-                aria-label="Eliminar gasto"
-                style={{ width: 22, height: 22, borderRadius: 99, border: "none", background: "transparent", color: "var(--ink-4)", cursor: "pointer", fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
-              >
-                ✕
-              </button>
-            </div>
-          )}
-        </li>
-      ))}
-    </ul>
-  );
-}
-
-function IncomeList({ items, onDelete, onEdit }: { items: Income[]; onDelete: (id: string) => void; onEdit?: (i: Income) => void }) {
-  const [confirmId, setConfirmId] = useState<string | null>(null);
-
-  return (
-    <ul style={{ margin: 0, padding: 0, listStyle: "none" }}>
-      {items.map((i, idx) => {
-        const hasLabel = !!i.label;
-        const hasBottomRow = hasLabel || (i.categories?.length > 0);
-        return (
-          <li
-            key={i.id}
-            style={{
-              display: "flex", alignItems: "flex-start", justifyContent: "space-between",
-              gap: 12, padding: "14px 18px",
-              borderTop: idx === 0 ? "none" : "1px solid var(--line-soft)",
-              cursor: onEdit ? "pointer" : "default",
-            }}
-            onClick={() => onEdit?.(i)}
-          >
-            <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 6 }}>
-              <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
-                <span style={{ fontSize: 11, color: "var(--ink-3)", flexShrink: 0 }}>
-                  {new Date(i.date).toLocaleDateString("es-CL", { day: "numeric", month: "short" })}
-                </span>
-                <span style={{ fontSize: 14.5, color: "var(--ink)" }}>
-                  {hasLabel ? i.label : i.account.name}
-                </span>
-              </div>
-              {(hasLabel || (i.categories?.length > 0)) && (
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center", fontSize: 11 }}>
-                  {hasLabel && (
-                    <span style={{ padding: "2px 8px", borderRadius: 99, background: "var(--bg-soft)", color: "var(--ink-2)", border: "1px solid var(--line)" }}>
-                      {i.account.name}
-                    </span>
-                  )}
-                  {i.categories?.map(({ category: c }) => (
-                    <span key={c.id} style={{ padding: "2px 8px", borderRadius: 99, background: "var(--accent-soft)", color: "var(--accent)", border: "none" }}>
-                      {c.name}
-                    </span>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {confirmId === i.id ? (
-              <div onClick={(ev) => ev.stopPropagation()} style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
-                <span style={{ fontSize: 11, color: "var(--ink-3)" }}>¿Eliminar?</span>
-                <button onClick={() => setConfirmId(null)} style={{ fontSize: 11, padding: "3px 8px", borderRadius: 8, background: "var(--bg-soft)", border: "1px solid var(--line)", color: "var(--ink-2)", cursor: "pointer" }}>No</button>
-                <button onClick={() => { setConfirmId(null); onDelete(i.id); }} style={{ fontSize: 11, padding: "3px 8px", borderRadius: 8, background: "var(--danger)", border: "none", color: "white", cursor: "pointer" }}>Sí</button>
-              </div>
-            ) : (
-              <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
-                <span style={{ fontFamily: "var(--font-geist-mono), ui-monospace, monospace", fontVariantNumeric: "tabular-nums", fontWeight: 500, fontSize: 14, color: "var(--accent)", whiteSpace: "nowrap" }}>
-                  + {formatCLP(i.amount)}
-                </span>
-                <button
-                  onClick={(ev) => { ev.stopPropagation(); setConfirmId(i.id); }}
-                  aria-label="Eliminar ingreso"
-                  style={{ width: 22, height: 22, borderRadius: 99, border: "none", background: "transparent", color: "var(--ink-4)", cursor: "pointer", fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
-                >
-                  ✕
-                </button>
-              </div>
-            )}
-          </li>
-        );
-      })}
-    </ul>
-  );
-}
-
-function OrphanedPlanItem({
-  plan, accounts, onDelete,
-}: {
-  plan: InstallmentPlan;
-  accounts: Account[];
-  onDelete: (id: string) => void;
-}) {
-  const [confirm, setConfirm] = useState(false);
-  const acc = plan.accountId ? accounts.find((a) => a.id === plan.accountId) : null;
-  const remaining = (plan.totalInstallments - plan.paidInstallments) * plan.installmentAmount;
-
-  return (
-    <li style={{
-      display: "flex", alignItems: "flex-start", justifyContent: "space-between",
-      gap: 14, padding: "14px 18px", borderTop: "1px solid var(--line-soft)",
-      opacity: 0.75,
-    }}>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-          <span style={{ fontSize: 14.5, color: "var(--ink)" }}>{plan.name}</span>
-          <span style={{ fontSize: 10, padding: "1px 6px", borderRadius: 99, background: "var(--bg-soft)", color: "var(--ink-3)", border: "1px solid var(--line)", letterSpacing: "0.08em" }}>
-            sin cuota este mes
-          </span>
-        </div>
-        <div style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 11, color: "var(--ink-3)" }}>
-          {acc && (
-            <span style={{ padding: "2px 8px", borderRadius: 99, background: "var(--bg-soft)", color: "var(--ink-2)", border: "1px solid var(--line)" }}>
-              {acc.name}
-            </span>
-          )}
-          <span>{plan.totalInstallments - plan.paidInstallments} cuotas restantes · {new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP" }).format(plan.installmentAmount)}/mes</span>
-        </div>
-      </div>
-      {confirm ? (
-        <div onClick={(e) => e.stopPropagation()} style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
-          <span style={{ fontSize: 11, color: "var(--ink-3)" }}>¿Eliminar?</span>
-          <button onClick={() => setConfirm(false)} style={{ fontSize: 11, padding: "3px 8px", borderRadius: 8, background: "var(--bg-soft)", border: "1px solid var(--line)", color: "var(--ink-2)", cursor: "pointer" }}>No</button>
-          <button onClick={() => onDelete(plan.id)} style={{ fontSize: 11, padding: "3px 8px", borderRadius: 8, background: "var(--danger)", border: "none", color: "white", cursor: "pointer" }}>Sí</button>
-        </div>
-      ) : (
-        <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
-          <span style={{ fontFamily: "var(--font-geist-mono), ui-monospace, monospace", fontVariantNumeric: "tabular-nums", fontSize: 13, color: "var(--ink-3)", whiteSpace: "nowrap" }}>
-            {new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP" }).format(remaining)}
-          </span>
-          <button
-            onClick={() => setConfirm(true)}
-            aria-label="Eliminar plan"
-            style={{ width: 22, height: 22, borderRadius: 99, border: "none", background: "transparent", color: "var(--ink-4)", cursor: "pointer", fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
-          >
-            ✕
-          </button>
-        </div>
-      )}
-    </li>
   );
 }

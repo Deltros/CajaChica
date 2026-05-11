@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Modal } from "./ExpenseModal";
 import CategoryPicker from "./CategoryPicker";
 import NumericInput from "./NumericInput";
+import * as apiClient from "@/apiClient";
 
 type Account = { id: string; name: string; type: string; isCreditCard: boolean };
 
@@ -52,23 +53,31 @@ export default function IncomeModal({ periodId, accounts, editIncome, onClose, o
     setLoading(true);
     setError("");
 
-    const res = await fetch("/api/incomes", {
-      method: isEditing ? "PATCH" : "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(isEditing
-        ? { id: editIncome!.id, amount: parseInt(amount), label: label || null, accountId, categoryIds: selectedCategories }
-        : { periodId, accountId, amount: parseInt(amount), label: label || undefined, categoryIds: selectedCategories.length > 0 ? selectedCategories : undefined }
-      ),
-    });
-
-    setLoading(false);
-    if (!res.ok) {
-      const data = await res.json();
-      setError(data.error || "Error al guardar");
-      return;
+    try {
+      if (isEditing) {
+        await apiClient.updateIncome({
+          id: editIncome!.id,
+          amount: parseInt(amount),
+          label: label || null,
+          accountId,
+          categoryIds: selectedCategories,
+        });
+      } else {
+        await apiClient.createIncome({
+          periodId,
+          accountId,
+          amount: parseInt(amount),
+          label: label || undefined,
+          categoryIds: selectedCategories.length > 0 ? selectedCategories : undefined,
+        });
+      }
+      onSaved();
+      onClose();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Error al guardar");
+    } finally {
+      setLoading(false);
     }
-    onSaved();
-    onClose();
   }
 
   return (

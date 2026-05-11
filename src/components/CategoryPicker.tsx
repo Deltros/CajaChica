@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import * as apiClient from "@/apiClient";
 
 type Category = { id: string; name: string; count?: number };
 
@@ -15,7 +16,7 @@ export default function CategoryPicker({ selected, onChange }: Props) {
   const [creating, setCreating] = useState(false);
 
   useEffect(() => {
-    fetch("/api/categories").then((r) => r.json()).then(setCategories).catch(() => {});
+    apiClient.fetchCategories().then(setCategories).catch(() => {});
   }, []);
 
   const searchTrimmed = search.trim();
@@ -32,21 +33,19 @@ export default function CategoryPicker({ selected, onChange }: Props) {
     onChange(selected.includes(id) ? selected.filter((x) => x !== id) : [...selected, id]);
   }
 
-  async function createCategory() {
+  async function handleCreateCategory() {
     if (!searchTrimmed || creating) return;
     setCreating(true);
-    const res = await fetch("/api/categories", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: searchTrimmed }),
-    });
-    if (res.ok) {
-      const cat: Category = await res.json();
+    try {
+      const cat = await apiClient.createCategory(searchTrimmed);
       setCategories((prev) => [cat, ...prev]);
       onChange([...selected, cat.id]);
       setSearch("");
+    } catch {
+      // silently ignore — user can retry
+    } finally {
+      setCreating(false);
     }
-    setCreating(false);
   }
 
   return (
@@ -58,7 +57,7 @@ export default function CategoryPicker({ selected, onChange }: Props) {
         value={search}
         onChange={(e) => setSearch(e.target.value)}
         onKeyDown={(e) => {
-          if (e.key === "Enter") { e.preventDefault(); if (showCreate) createCategory(); }
+          if (e.key === "Enter") { e.preventDefault(); if (showCreate) handleCreateCategory(); }
         }}
         style={{
           width: "100%", fontFamily: "inherit", fontSize: 13,
@@ -99,7 +98,7 @@ export default function CategoryPicker({ selected, onChange }: Props) {
       {showCreate && (
         <button
           type="button"
-          onClick={createCategory}
+          onClick={handleCreateCategory}
           disabled={creating}
           style={{
             marginTop: displayed.length > 0 ? 8 : 0,

@@ -1,52 +1,38 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
 import { z } from "zod";
+import { CategoryService } from "@/services/CategoryService";
 
 export async function GET() {
   const session = await auth();
   if (!session?.user?.id) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
-  const categories = await prisma.category.findMany({
-    where: { userId: session.user.id },
-    include: { _count: { select: { expenses: true } } },
-    orderBy: { expenses: { _count: "desc" } },
-  });
-
-  return NextResponse.json(categories.map((c) => ({ id: c.id, name: c.name, count: c._count.expenses })));
+  const categories = await CategoryService.getAll(session.user.id);
+  return NextResponse.json(categories);
 }
 
 export async function POST(req: Request) {
   const session = await auth();
   if (!session?.user?.id) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
-  const body = await req.json();
-  const parsed = z.object({ name: z.string().min(1).max(50) }).safeParse(body);
+  const parsed = z.object({ name: z.string().min(1).max(50) }).safeParse(await req.json());
   if (!parsed.success) return NextResponse.json({ error: "Datos inválidos" }, { status: 400 });
 
-  const existing = await prisma.category.findUnique({
-    where: { userId_name: { userId: session.user.id, name: parsed.data.name } },
-  });
-  if (existing) return NextResponse.json({ error: "Ya existe esa categoría" }, { status: 409 });
+  const result = await CategoryService.create(session.user.id, parsed.data.name);
+  if ("error" in result) return NextResponse.json({ error: result.error }, { status: 409 });
 
-  const category = await prisma.category.create({
-    data: { userId: session.user.id, name: parsed.data.name },
-  });
-
-  return NextResponse.json(category, { status: 201 });
+  return NextResponse.json(result.category, { status: 201 });
 }
 
 export async function DELETE(req: Request) {
   const session = await auth();
   if (!session?.user?.id) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
-  const { searchParams } = new URL(req.url);
-  const id = searchParams.get("id");
+  const id = new URL(req.url).searchParams.get("id");
   if (!id) return NextResponse.json({ error: "ID requerido" }, { status: 400 });
 
-  const category = await prisma.category.findFirst({ where: { id, userId: session.user.id } });
-  if (!category) return NextResponse.json({ error: "No encontrado" }, { status: 404 });
+  const deleted = await CategoryService.delete(id, session.user.id);
+  if (!deleted) return NextResponse.json({ error: "No encontrado" }, { status: 404 });
 
-  await prisma.category.delete({ where: { id } });
   return NextResponse.json({ ok: true });
 }

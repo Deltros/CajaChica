@@ -5,6 +5,8 @@ import { formatCLP } from "@/lib/format";
 import { Modal } from "./ExpenseModal";
 import CategoryPicker from "./CategoryPicker";
 import NumericInput from "./NumericInput";
+import { saveBalanceAdjustment } from "@/apiClient";
+import { EntrySource } from "@/domain/enums";
 
 const MONO: React.CSSProperties = { fontFamily: "var(--font-geist-mono), ui-monospace, monospace", fontVariantNumeric: "tabular-nums" };
 const SERIF: React.CSSProperties = { fontFamily: "var(--font-instrument-serif), serif" };
@@ -53,22 +55,17 @@ export default function BalanceAdjustModal({ account, calculated, totalRemaining
   async function handleSave() {
     const diff = computeDiff();
     if (diff === null || diff === 0) { onClose(); return; }
-    const entrySource = mode === "total" ? "BALANCE_ADJUST_TOTAL" : "BALANCE_ADJUST_MONTHLY";
+    const source = mode === "total" ? EntrySource.BALANCE_ADJUST_TOTAL : EntrySource.BALANCE_ADJUST_MONTHLY;
     const label = description.trim() || (mode === "total" ? "Ajuste de saldo total" : "Ajuste de saldo");
     setLoading(true);
-    if (diff > 0) {
-      await fetch("/api/incomes", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ periodId, accountId: account.id, amount: diff, label, source: entrySource, categoryIds: selectedCategories }),
-      });
-    } else {
-      await fetch("/api/expenses", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ periodId, description: label, amount: Math.abs(diff), type: "VARIABLE", source: entrySource, accountId: account.id, categoryIds: selectedCategories }),
-      });
-    }
+    await saveBalanceAdjustment({
+      periodId,
+      accountId: account.id,
+      diff,
+      label,
+      source,
+      categoryIds: selectedCategories,
+    });
     setLoading(false);
     onSaved();
     onClose();

@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
 import { z } from "zod";
+import { InstallmentService } from "@/services/InstallmentService";
 
-const planSchema = z.object({
+const createSchema = z.object({
   name: z.string().min(1),
   installmentAmount: z.number().positive(),
   totalInstallments: z.number().int().positive(),
@@ -12,63 +12,23 @@ const planSchema = z.object({
   accountId: z.string().optional(),
 });
 
-function addMonths(year: number, month: number, delta: number) {
-  const date = new Date(year, month - 1 + delta, 1);
-  return { year: date.getFullYear(), month: date.getMonth() + 1 };
-}
-
 export async function GET() {
   const session = await auth();
   if (!session?.user?.id) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
-  const allPlans = await prisma.installmentPlan.findMany({
-    where: { userId: session.user.id },
-    orderBy: { createdAt: "desc" },
-  });
-
-  return NextResponse.json(allPlans.filter((p) => p.paidInstallments < p.totalInstallments));
+  const plans = await InstallmentService.getActivePlans(session.user.id);
+  return NextResponse.json(plans);
 }
 
 export async function POST(req: Request) {
   const session = await auth();
   if (!session?.user?.id) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
-  const body = await req.json();
-  const parsed = planSchema.safeParse(body);
+  const parsed = createSchema.safeParse(await req.json());
   if (!parsed.success) return NextResponse.json({ error: "Datos inválidos" }, { status: 400 });
 
-  const { name, installmentAmount, totalInstallments, periodId, startThisMonth, accountId } = parsed.data;
-
-  // Verify the period belongs to this user
-  const period = await prisma.monthlyPeriod.findFirst({
-    where: { id: periodId, userId: session.user.id },
-  });
-  if (!period) return NextResponse.json({ error: "Período no encontrado" }, { status: 404 });
-
-  // The first installment month: this month or next month
-  const firstInstallment = startThisMonth
-    ? { year: period.year, month: period.month }
-    : addMonths(period.year, period.month, 1);
-
-  const plan = await prisma.installmentPlan.create({
-    data: {
-      userId: session.user.id,
-      accountId: accountId ?? null,
-      name,
-      installmentAmount,
-      totalAmount: installmentAmount * totalInstallments,
-      totalInstallments,
-      startYear: firstInstallment.year,
-      startMonth: firstInstallment.month,
-    },
-  });
-
-  // If starting this month, create the PeriodInstallment now
-  if (startThisMonth) {
-    await prisma.periodInstallment.create({
-      data: { periodId, planId: plan.id, amount: installmentAmount },
-    });
-  }
+  const plan = await InstallmentService.create(session.user.id, parsed.data);
+  if (!plan) return NextResponse.json({ error: "Período no encontrado" }, { status: 404 });
 
   return NextResponse.json(plan, { status: 201 });
 }
@@ -77,15 +37,11 @@ export async function DELETE(req: Request) {
   const session = await auth();
   if (!session?.user?.id) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
-  const { searchParams } = new URL(req.url);
-  const id = searchParams.get("id");
+  const id = new URL(req.url).searchParams.get("id");
   if (!id) return NextResponse.json({ error: "ID requerido" }, { status: 400 });
 
-  const plan = await prisma.installmentPlan.findFirst({
-    where: { id, userId: session.user.id },
-  });
-  if (!plan) return NextResponse.json({ error: "No encontrado" }, { status: 404 });
+  const deleted = await InstallmentService.delete(id, session.user.id);
+  if (!deleted) return NextResponse.json({ error: "No encontrado" }, { status: 404 });
 
-  await prisma.installmentPlan.delete({ where: { id } });
   return NextResponse.json({ ok: true });
 }

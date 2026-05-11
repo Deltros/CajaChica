@@ -3,6 +3,7 @@
 import { useState } from "react";
 import CategoryPicker from "./CategoryPicker";
 import NumericInput from "./NumericInput";
+import * as apiClient from "@/apiClient";
 
 type Account = { id: string; name: string; isCreditCard: boolean };
 
@@ -69,47 +70,37 @@ export default function ExpenseModal({ periodId, accounts, defaultAccountId, edi
     setLoading(true);
     setError("");
 
-    let res: Response;
-    if (isEditing) {
-      res = await fetch("/api/expenses", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+    try {
+      if (isEditing) {
+        await apiClient.updateExpense({
           id: editExpense!.id,
           description, amount: amountNum, type,
           accountId: accountId || null,
           categoryIds: selectedCategories,
-        }),
-      });
-    } else if (isInstallment) {
-      res = await fetch("/api/installments", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+        });
+      } else if (isInstallment) {
+        await apiClient.createInstallmentPlan({
           periodId,
           name: description,
           installmentAmount: perInstallment,
           totalInstallments: installmentsNum,
           startThisMonth,
           accountId: accountId || undefined,
-        }),
-      });
-    } else {
-      res = await fetch("/api/expenses", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ periodId, description, amount: amountNum, type, accountId: accountId || undefined, categoryIds: selectedCategories }),
-      });
+        });
+      } else {
+        await apiClient.createExpense({
+          periodId, description, amount: amountNum, type,
+          accountId: accountId || undefined,
+          categoryIds: selectedCategories,
+        });
+      }
+      onSaved();
+      onClose();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Error al guardar");
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
-    if (!res.ok) {
-      const data = await res.json();
-      setError(data.error || "Error al guardar");
-      return;
-    }
-    onSaved();
-    onClose();
   }
 
   const EXPENSE_TYPES = [
