@@ -102,7 +102,7 @@ async function propagateFixedExpenses(
       amount: source.amount,
       type: ExpenseType.FIXED,
       source: source.source as EntrySource,
-      date: new Date(year, month - 1, 1),
+      date: new Date(Date.UTC(year, month - 1, 1)),
       accountId: source.accountId,
       recurringGroupId: groupId,
       categoryIds: source.categories.map((c) => c.categoryId),
