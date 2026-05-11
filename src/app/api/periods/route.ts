@@ -9,7 +9,9 @@ export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const year = parseInt(searchParams.get("year") ?? String(new Date().getFullYear()));
   const month = parseInt(searchParams.get("month") ?? String(new Date().getMonth() + 1));
+  const todayStr = searchParams.get("today");
+  const today = todayStr ? new Date(`${todayStr}T12:00:00Z`) : new Date();
 
-  const result = await PeriodService.getOrCreateWithSummary(session.user.id, year, month);
+  const result = await PeriodService.getOrCreateWithSummary(session.user.id, year, month, today);
   return NextResponse.json(result);
 }

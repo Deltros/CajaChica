@@ -12,7 +12,7 @@ function monthOffset(year: number, month: number) {
 }
 
 export const PeriodService = {
-  async getOrCreateWithSummary(userId: string, year: number, month: number): Promise<PeriodResponse> {
+  async getOrCreateWithSummary(userId: string, year: number, month: number, today: Date = new Date()): Promise<PeriodResponse> {
     let period = await PeriodRepository.findOrCreate(userId, year, month);
 
     await propagateInstallments(userId, period.id, year, month);
@@ -34,6 +34,7 @@ export const PeriodService = {
       allPlans,
       year,
       month,
+      today,
     );
 
     return { period: period as unknown as PeriodResponse["period"], summary };

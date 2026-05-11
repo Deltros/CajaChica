@@ -15,7 +15,9 @@ async function request<T>(url: string, options?: RequestInit): Promise<T> {
 // ── Periods ───────────────────────────────────────────────────────────────────
 
 export function fetchPeriod(year: number, month: number): Promise<PeriodResponse> {
-  return request(`/api/periods?year=${year}&month=${month}`);
+  const d = new Date();
+  const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  return request(`/api/periods?year=${year}&month=${month}&today=${today}`);
 }
 
 // ── Accounts ──────────────────────────────────────────────────────────────────

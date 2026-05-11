@@ -9,15 +9,17 @@ import type {
 } from "../types";
 import { computeAccountBalance } from "./accountBalance";
 
-function daysLeftInMonth(year: number, month: number): number {
-  const now = new Date();
+function daysLeftInMonth(year: number, month: number, today: Date): number {
   const totalDays = new Date(year, month, 0).getDate();
+  const todayYear = today.getUTCFullYear();
+  const todayMonth = today.getUTCMonth() + 1;
+  const todayDay = today.getUTCDate();
 
-  if (year > now.getFullYear() || (year === now.getFullYear() && month > now.getMonth() + 1)) {
+  if (year > todayYear || (year === todayYear && month > todayMonth)) {
     return totalDays;
   }
-  if (year === now.getFullYear() && month === now.getMonth() + 1) {
-    return totalDays - now.getDate();
+  if (year === todayYear && month === todayMonth) {
+    return totalDays - todayDay;
   }
   return 0;
 }
@@ -30,6 +32,7 @@ export function computePeriodSummary(
   allPlans: PlanEntry[],
   year: number,
   month: number,
+  today: Date = new Date(),
 ): PeriodSummary {
   const totalIncome = incomes.reduce((s, i) => s + i.amount, 0);
   const totalFixed = expenses.filter((e) => e.type === ExpenseType.FIXED).reduce((s, e) => s + e.amount, 0);
@@ -48,7 +51,7 @@ export function computePeriodSummary(
   const totalNegative = accountBalances.filter((b) => b.balance < 0).reduce((s, b) => s + b.balance, 0);
   const remaining = totalPositive + totalNegative;
 
-  const daysLeft = daysLeftInMonth(year, month);
+  const daysLeft = daysLeftInMonth(year, month, today);
   const dailyBudget = daysLeft > 0 ? Math.floor(remaining / daysLeft) : 0;
   const dailyBudgetWithPending = daysLeft > 0 ? Math.floor((remaining - totalPending) / daysLeft) : 0;
 
