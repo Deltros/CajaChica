@@ -19,6 +19,7 @@ En Next.js el frontend y backend viven en el mismo proyecto. Las páginas son el
 | Autenticación | **NextAuth v5 (beta)** | Maneja login/logout/sesiones con JWT |
 | Validación | **Zod** | Valida que los datos que llegan al servidor tengan el formato correcto |
 | Encriptación | **bcryptjs** | Hashea las contraseñas antes de guardarlas en la BD |
+| Tests | **Vitest** | Tests unitarios para las calculadoras de dominio (`computeAccountBalance`, `computePeriodSummary`) |
 
 ### Endpoints del backend
 
@@ -81,3 +82,14 @@ npm run dev
 ```
 
 La app queda disponible en http://localhost:3000
+
+---
+
+## Tests
+
+```bash
+npm test           # corre los tests una vez
+npm run test:watch # modo watch (se re-ejecutan al guardar)
+```
+
+Los tests están en `src/domain/calculators/__tests__/` y cubren las calculadoras de dominio con datos reales de Mayo 2026.
