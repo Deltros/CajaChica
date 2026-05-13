@@ -56,31 +56,12 @@ export function computeAccountBalance(
   const totalRemainingDebt = plansDebt + adjExpenses - adjIncomes;
 
   if (account.isCreditCard) {
-    const adjEntryDates: Date[] = [
-      ...expenses.filter((e) => e.accountId === account.id && e.source === EntrySource.BALANCE_ADJUST_TOTAL),
-      ...incomes.filter((i) => i.accountId === account.id && i.source === EntrySource.BALANCE_ADJUST_TOTAL),
-    ].map((e) => new Date(e.date));
-
-    const lastAdjDate =
-      adjEntryDates.length > 0
-        ? adjEntryDates.reduce((a, b) => (b > a ? b : a))
-        : null;
-
-    const postAdjUserSpent = expenses
-      .filter(
-        (e) =>
-          e.accountId === account.id &&
-          e.type !== ExpenseType.PENDING &&
-          e.source === EntrySource.USER &&
-          (lastAdjDate === null || new Date(e.date) > lastAdjDate),
-      )
-      .reduce((s, e) => s + e.amount, 0);
-
     return {
       accountId: account.id,
-      balance: -(instSpent + adjExpenses - adjIncomes + postAdjUserSpent),
+      balance: -(instSpent + adjExpenses - adjIncomes),
       pendingSpent,
-      totalRemainingDebt: totalRemainingDebt + postAdjUserSpent,
+      totalRemainingDebt,
+      postAdjUserSpent: 0,
     };
   }
 
@@ -89,5 +70,6 @@ export function computeAccountBalance(
     balance: inc - spent - instSpent,
     pendingSpent,
     totalRemainingDebt: 0,
+    postAdjUserSpent: 0,
   };
 }

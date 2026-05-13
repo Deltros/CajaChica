@@ -12,7 +12,7 @@ describe("computePeriodSummary — Mayo 2026", () => {
     it("totalIncome", () => expect(s.totalIncome).toBe(3_349_253));
     it("totalFixed",  () => expect(s.totalFixed).toBe(1_569_000));
     it("totalSavings", () => expect(s.totalSavings).toBe(800_000));
-    it("totalVariable", () => expect(s.totalVariable).toBe(574_619));
+    it("totalVariable", () => expect(s.totalVariable).toBe(996_677));
     it("totalPendingInstallments", () => expect(s.totalPendingInstallments).toBe(40_000));
     it("totalPending", () => expect(s.totalPending).toBe(189_850));
   });

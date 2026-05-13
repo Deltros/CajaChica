@@ -118,6 +118,7 @@ export type AccountBalanceSummary = {
   balance: number;
   pendingSpent: number;
   totalRemainingDebt: number;
+  postAdjUserSpent: number;
 };
 
 export type PeriodSummary = {
