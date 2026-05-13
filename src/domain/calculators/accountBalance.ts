@@ -56,11 +56,20 @@ export function computeAccountBalance(
   const totalRemainingDebt = plansDebt + adjExpenses - adjIncomes;
 
   if (account.isCreditCard) {
+    const postAdjUserSpent = expenses
+      .filter(
+        (e) =>
+          e.accountId === account.id &&
+          e.type !== ExpenseType.PENDING &&
+          e.source === EntrySource.USER,
+      )
+      .reduce((s, e) => s + e.amount, 0);
+
     return {
       accountId: account.id,
-      balance: -(instSpent + adjExpenses - adjIncomes),
+      balance: -(instSpent + adjExpenses - adjIncomes + postAdjUserSpent),
       pendingSpent,
-      totalRemainingDebt,
+      totalRemainingDebt: totalRemainingDebt + postAdjUserSpent,
       postAdjUserSpent: 0,
     };
   }

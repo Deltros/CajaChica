@@ -37,7 +37,7 @@ export const expenses: ExpenseEntry[] = [
 
   // Variables
   { accountId: DEBITO_ID,  amount:  81_927, type: "VARIABLE", source: "USER",                 date: "2026-05-11T01:32:49.972Z" }, // Ajuste de saldo
-  { accountId: CREDITO_ID, amount: 464_162, type: "VARIABLE", source: "BALANCE_ADJUST_TOTAL", date: "2026-05-11T01:33:26.845Z" }, // Ajuste de saldo total
+  { accountId: CREDITO_ID, amount:  42_104, type: "VARIABLE", source: "USER",                 date: "2026-05-11T01:33:26.845Z" }, // Ajuste de saldo total
   { accountId: DEBITO_ID,  amount: 152_000, type: "VARIABLE", source: "USER",                  date: "2026-05-11T01:35:24.240Z" }, // Clases Tenis
   { accountId: DEBITO_ID,  amount:  10_000, type: "VARIABLE", source: "USER",                  date: "2026-05-11T01:35:52.931Z" }, // Ajuste de saldo
   { accountId: CREDITO_ID, amount:  79_687, type: "VARIABLE", source: "USER",                  date: "2026-05-11T01:36:12.448Z" }, // Salida familiatencia
