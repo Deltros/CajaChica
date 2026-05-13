@@ -14,3 +14,11 @@ This is a financial application — correctness and reliability are non-negotiab
 - **Separation of concerns:** Presentation logic (what the user sees) must be decoupled from domain logic (what the system does with data). A name change in the UI must never break a calculation.
 - These principles apply to all models, APIs, and frontend logic. When in doubt, prefer an explicit enum over an implicit convention.
 <!-- END:nextjs-agent-rules -->
+
+# Reglas vitales — no negociables
+
+Estas reglas no pueden romperse bajo ninguna circunstancia. Si crees que hay una excepción, debes explicarla al usuario y esperar autorización explícita antes de proceder.
+
+## Tests
+
+- **Nunca modificar tests sin autorización explícita del usuario.** Si necesitas cambiar un test, detente, explica claramente por qué (qué cambió en el comportamiento esperado y por qué ese cambio es correcto), y espera aprobación. Un test que falla es una señal de alerta — no una molestia a eliminar.
